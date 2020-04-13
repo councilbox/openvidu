@@ -442,7 +442,7 @@ public class SessionRestController {
 		Boolean hasVideo;
 		String recordingLayoutString;
 		String customLayout;
-		String rtmpUrl:
+		String rtmpUrl;
 		try {
 			sessionId = (String) params.get("session");
 			name = (String) params.get("name");

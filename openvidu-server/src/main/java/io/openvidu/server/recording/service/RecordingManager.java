@@ -152,7 +152,7 @@ public class RecordingManager {
 	public void initializeRecordingManager() throws OpenViduException {
 
 		RecordingManager.IMAGE_TAG = openviduConfig.getOpenViduRecordingVersion();
-		og.info("Image tag defined: " + RecordingManager.IMAGE_TAG);
+		log.info("Image tag defined: " + RecordingManager.IMAGE_TAG);
 
 		this.dockerManager = new DockerManager();
 		this.composedRecordingService = new ComposedRecordingService(this, recordingDownloader, openviduConfig, cdr,

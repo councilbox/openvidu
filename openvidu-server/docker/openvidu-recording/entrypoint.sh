@@ -11,7 +11,7 @@ else
 
 ### Variables ###
 
-URL=${URL:-https://www.youtube.com/watch?v=JMuzlEQz3uo}
+URL=${URL:-https://councilbox.com}
 ONLY_VIDEO=${ONLY_VIDEO:-false}
 RESOLUTION=${RESOLUTION:-1920x1080}
 FRAMERATE=${FRAMERATE:-25}

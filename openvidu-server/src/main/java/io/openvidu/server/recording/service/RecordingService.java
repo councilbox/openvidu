@@ -139,7 +139,7 @@ public abstract class RecordingService {
 		String recordingId = this.recordingManager.getFreeRecordingId(session.getSessionId());
 		if (properties.name() == null || properties.name().isEmpty()) {
 			// No name provided for the recording file. Use recordingId
-			RecordingProperties.Builder builder = new RecordingProperties.Builder().name(recordingId).rtmpUrl(rtmpUrl)
+			RecordingProperties.Builder builder = new RecordingProperties.Builder().name(recordingId).rtmpUrl(properties.rtmpUrl())
 					.outputMode(properties.outputMode()).hasAudio(properties.hasAudio())
 					.hasVideo(properties.hasVideo());
 			if (io.openvidu.java.client.Recording.OutputMode.COMPOSED.equals(properties.outputMode())

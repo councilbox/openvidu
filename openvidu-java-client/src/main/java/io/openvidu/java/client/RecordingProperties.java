@@ -26,6 +26,7 @@ import io.openvidu.java.client.Recording.OutputMode;
 public class RecordingProperties {
 
 	private String name;
+	private String rtmpUrl;
 	private Recording.OutputMode outputMode;
 	private RecordingLayout recordingLayout;
 	private String customLayout;
@@ -39,6 +40,7 @@ public class RecordingProperties {
 	public static class Builder {
 
 		private String name = "";
+		private String rtmpUrl = "";
 		private Recording.OutputMode outputMode = Recording.OutputMode.COMPOSED;
 		private RecordingLayout recordingLayout;
 		private String customLayout;
@@ -57,7 +59,7 @@ public class RecordingProperties {
 					this.customLayout = this.customLayout != null ? this.customLayout : "";
 				}
 			}
-			return new RecordingProperties(this.name, this.outputMode, this.recordingLayout, this.customLayout,
+			return new RecordingProperties(this.name, this.rtmpUrl, this.outputMode, this.recordingLayout, this.customLayout,
 					this.resolution, this.hasAudio, this.hasVideo);
 		}
 
@@ -68,6 +70,14 @@ public class RecordingProperties {
 		 */
 		public RecordingProperties.Builder name(String name) {
 			this.name = name;
+			return this;
+		}
+
+		/**
+		 * Call this method to set the rtmpUrl publish point.
+		 */
+		public RecordingProperties.Builder rtmpUrl(String rtmpUrl) {
+			this.rtmpUrl = rtmpUrl;
 			return this;
 		}
 
@@ -148,9 +158,10 @@ public class RecordingProperties {
 
 	}
 
-	protected RecordingProperties(String name, Recording.OutputMode outputMode, RecordingLayout layout,
+	protected RecordingProperties(String name, String rtmpUrl, Recording.OutputMode outputMode, RecordingLayout layout,
 			String customLayout, String resolution, boolean hasAudio, boolean hasVideo) {
 		this.name = name;
+		this.rtmpUrl = rtmpUrl;
 		this.outputMode = outputMode;
 		this.recordingLayout = layout;
 		this.customLayout = customLayout;
@@ -166,6 +177,13 @@ public class RecordingProperties {
 	 */
 	public String name() {
 		return this.name;
+	}
+
+	/**
+	 * Defines the rtmpUrl point to publish
+	 */
+	public String rtmpUrl() {
+		return this.rtmpUrl;
 	}
 
 	/**

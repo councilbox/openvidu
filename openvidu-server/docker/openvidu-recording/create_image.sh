@@ -1,1 +1,1 @@
-docker build --rm -t openvidu/openvidu-recording .
+docker build --rm -t councilbox/rtmp-recording .

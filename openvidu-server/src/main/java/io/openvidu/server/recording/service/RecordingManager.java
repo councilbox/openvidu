@@ -115,7 +115,7 @@ public class RecordingManager {
 			Runtime.getRuntime().availableProcessors());
 
 	static final String RECORDING_ENTITY_FILE = ".recording.";
-	public static final String IMAGE_NAME = "openvidu/openvidu-recording";
+	public static final String IMAGE_NAME = "councilbox/rtmp-recording";
 	static String IMAGE_TAG;
 
 	private static final List<EndReason> LAST_PARTICIPANT_LEFT_REASONS = Arrays
@@ -152,6 +152,7 @@ public class RecordingManager {
 	public void initializeRecordingManager() throws OpenViduException {
 
 		RecordingManager.IMAGE_TAG = openviduConfig.getOpenViduRecordingVersion();
+		og.info("Image tag defined: " + RecordingManager.IMAGE_TAG);
 
 		this.dockerManager = new DockerManager();
 		this.composedRecordingService = new ComposedRecordingService(this, recordingDownloader, openviduConfig, cdr,

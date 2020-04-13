@@ -22,6 +22,32 @@ VIDEO_NAME=${VIDEO_NAME:-video}
 VIDEO_FORMAT=${VIDEO_FORMAT:-mp4}
 RECORDING_JSON="${RECORDING_JSON}"
 
+SUB='rtmp'
+RTMP=""
+IP=""
+PORT=""
+APP_NAME=""
+STREAM=""
+it=0
+if [[ "$VIDEO_NAME" == *"$SUB"* ]]; then
+  IFS='-' # hyphen (-) is set as delimiter
+  read -ra ADDR <<< "$VIDEO_NAME" # str is read into an array as tokens separated by IFS
+  for i in "${ADDR[@]}"; do # access each element of array
+      if [ $it -eq 0 ]; then
+        RTMP=$i
+      elif [ $it -eq 1 ]; then
+        IP=$i
+      elif [ $it -eq 2 ]; then
+        PORT=$i
+      elif [ $it -eq 3 ]; then
+        APP_NAME=$i
+      elif [ $it -eq 4 ]; then
+        STREAM=$i
+      fi
+      let it=it+1
+  done
+fi
+
 export URL
 export ONLY_VIDEO
 export RESOLUTION
@@ -32,6 +58,15 @@ export VIDEO_ID
 export VIDEO_NAME
 export VIDEO_FORMAT
 export RECORDING_JSON
+
+export SUB
+export RTMP
+export IP
+export PORT
+export APP_NAME
+
+### Show name
+echo $VIDEO_NAME
 
 ### Store Recording json data ###
 
@@ -73,48 +108,55 @@ touch stop
 chmod 777 /recordings
 sleep 2
 
-### Start recording with ffmpeg ###
-
-if [[ "$ONLY_VIDEO" == true ]]
-  then
-     # Do not record audio
-     <./stop ffmpeg -y -f x11grab -draw_mouse 0 -framerate $FRAMERATE -video_size $RESOLUTION -i :$DISPLAY_NUM -c:v libx264 -preset ultrafast -crf 28 -refs 4 -qmin 4 -pix_fmt yuv420p -filter:v fps=$FRAMERATE "/recordings/$VIDEO_ID/$VIDEO_NAME.$VIDEO_FORMAT"
+if [[ "$VIDEO_NAME" == *"$SUB"* ]]; then
+  echo "Send rtmp"
+  <./stop ffmpeg -y -f alsa -i pulse -f x11grab -draw_mouse 0 -framerate $FRAMERATE -video_size $RESOLUTION -i :$DISPLAY_NUM -c:a aac -c:v libx264 -preset ultrafast -crf 28 -refs 4 -qmin 4 -pix_fmt yuv420p -filter:v fps=$FRAMERATE -f flv rtmp://$IP:$PORT/$APP_NAME/$STREAM
+  ### Generate false video report file ###
+  ffprobe -v quiet -print_format json -show_format -show_streams /recordings/fake.mp4 > /recordings/$VIDEO_ID/$VIDEO_ID.info
+else
+  if [[ "$ONLY_VIDEO" == true ]]
+    then
+      # Do not record audio
+      echo "Record only video"
+      <./stop ffmpeg -y -f x11grab -draw_mouse 0 -framerate $FRAMERATE -video_size $RESOLUTION -i :$DISPLAY_NUM -c:v libx264 -preset ultrafast -crf 28 -refs 4 -qmin 4 -pix_fmt yuv420p -filter:v fps=$FRAMERATE "/recordings/$VIDEO_ID/$VIDEO_NAME.$VIDEO_FORMAT"     
   else
      # Record audio  ("-f alsa -i pulse [...] -c:a aac")
+     echo "Record video + audio"
      <./stop ffmpeg -y -f alsa -i pulse -f x11grab -draw_mouse 0 -framerate $FRAMERATE -video_size $RESOLUTION -i :$DISPLAY_NUM -c:a aac -c:v libx264 -preset ultrafast -crf 28 -refs 4 -qmin 4 -pix_fmt yuv420p -filter:v fps=$FRAMERATE "/recordings/$VIDEO_ID/$VIDEO_NAME.$VIDEO_FORMAT"
-fi
+  fi
 
-### Generate video report file ###
-ffprobe -v quiet -print_format json -show_format -show_streams /recordings/$VIDEO_ID/$VIDEO_NAME.$VIDEO_FORMAT > /recordings/$VIDEO_ID/$VIDEO_ID.info
+  ### Generate video report file ###
+  ffprobe -v quiet -print_format json -show_format -show_streams /recordings/$VIDEO_ID/$VIDEO_NAME.$VIDEO_FORMAT > /recordings/$VIDEO_ID/$VIDEO_ID.info
 
-### Update Recording json data ###
+  ### Update Recording json data ###
 
-TMP=$(mktemp /recordings/$VIDEO_ID/.$VIDEO_ID.XXXXXXXXXXXXXXXXXXXXXXX.json)
-INFO=$(cat /recordings/$VIDEO_ID/$VIDEO_ID.info | jq '.')
-HAS_AUDIO_AUX=$(echo $INFO | jq '.streams[] | select(.codec_type == "audio")')
-if [ -z "$HAS_AUDIO_AUX" ]; then HAS_AUDIO=false; else HAS_AUDIO=true; fi
-HAS_VIDEO_AUX=$(echo $INFO | jq '.streams[] | select(.codec_type == "video")')
-if [ -z "$HAS_VIDEO_AUX" ]; then HAS_VIDEO=false; else HAS_VIDEO=true; fi
-SIZE=$(echo $INFO | jq '.format.size | tonumber')
-DURATION=$(echo $INFO | jq '.format.duration | tonumber')
+  TMP=$(mktemp /recordings/$VIDEO_ID/.$VIDEO_ID.XXXXXXXXXXXXXXXXXXXXXXX.json)
+  INFO=$(cat /recordings/$VIDEO_ID/$VIDEO_ID.info | jq '.')
+  HAS_AUDIO_AUX=$(echo $INFO | jq '.streams[] | select(.codec_type == "audio")')
+  if [ -z "$HAS_AUDIO_AUX" ]; then HAS_AUDIO=false; else HAS_AUDIO=true; fi
+  HAS_VIDEO_AUX=$(echo $INFO | jq '.streams[] | select(.codec_type == "video")')
+  if [ -z "$HAS_VIDEO_AUX" ]; then HAS_VIDEO=false; else HAS_VIDEO=true; fi
+  SIZE=$(echo $INFO | jq '.format.size | tonumber')
+  DURATION=$(echo $INFO | jq '.format.duration | tonumber')
 
-if [[ "$HAS_AUDIO" == false && "$HAS_VIDEO" == false ]]
-  then
+  if [[ "$HAS_AUDIO" == false && "$HAS_VIDEO" == false ]]
+    then
     STATUS="failed"
   else
     STATUS="stopped"
-fi
+  fi
 
-jq -c -r ".hasAudio=$HAS_AUDIO | .hasVideo=$HAS_VIDEO | .duration=$DURATION | .size=$SIZE | .status=\"$STATUS\"" "/recordings/$VIDEO_ID/.recording.$VIDEO_ID" > $TMP && mv $TMP /recordings/$VIDEO_ID/.recording.$VIDEO_ID
+  jq -c -r ".hasAudio=$HAS_AUDIO | .hasVideo=$HAS_VIDEO | .duration=$DURATION | .size=$SIZE | .status=\"$STATUS\"" "/recordings/$VIDEO_ID/.recording.$VIDEO_ID" > $TMP && mv $TMP /recordings/$VIDEO_ID/.recording.$VIDEO_ID
 
-### Generate video thumbnail ###
+  ### Generate video thumbnail ###
 
-MIDDLE_TIME=$(ffmpeg -i /recordings/$VIDEO_ID/$VIDEO_NAME.$VIDEO_FORMAT 2>&1 | grep Duration | awk '{print $2}' | tr -d , | awk -F ':' '{print ($3+$2*60+$1*3600)/2}')
-THUMBNAIL_HEIGHT=$((480*$HEIGHT/$WIDTH))
-ffmpeg -ss $MIDDLE_TIME -i /recordings/$VIDEO_ID/$VIDEO_NAME.$VIDEO_FORMAT -vframes 1 -s 480x$THUMBNAIL_HEIGHT /recordings/$VIDEO_ID/$VIDEO_ID.jpg
+  MIDDLE_TIME=$(ffmpeg -i /recordings/$VIDEO_ID/$VIDEO_NAME.$VIDEO_FORMAT 2>&1 | grep Duration | awk '{print $2}' | tr -d , | awk -F ':' '{print ($3+$2*60+$1*3600)/2}')
+  THUMBNAIL_HEIGHT=$((480*$HEIGHT/$WIDTH))
+  ffmpeg -ss $MIDDLE_TIME -i /recordings/$VIDEO_ID/$VIDEO_NAME.$VIDEO_FORMAT -vframes 1 -s 480x$THUMBNAIL_HEIGHT /recordings/$VIDEO_ID/$VIDEO_ID.jpg
 
-### Change permissions to all generated files ###
+  ### Change permissions to all generated files ###
 
-sudo chmod -R 777 /recordings/$VIDEO_ID
+  sudo chmod -R 777 /recordings/$VIDEO_ID
 
+  fi
 fi

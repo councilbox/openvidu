@@ -21,32 +21,7 @@ VIDEO_ID=${VIDEO_ID:-video}
 VIDEO_NAME=${VIDEO_NAME:-video}
 VIDEO_FORMAT=${VIDEO_FORMAT:-mp4}
 RECORDING_JSON="${RECORDING_JSON}"
-
-SUB='rtmp'
-RTMP=""
-IP=""
-PORT=""
-APP_NAME=""
-STREAM=""
-it=0
-if [[ "$VIDEO_NAME" == *"$SUB"* ]]; then
-  IFS='-' # hyphen (-) is set as delimiter
-  read -ra ADDR <<< "$VIDEO_NAME" # str is read into an array as tokens separated by IFS
-  for i in "${ADDR[@]}"; do # access each element of array
-      if [ $it -eq 0 ]; then
-        RTMP=$i
-      elif [ $it -eq 1 ]; then
-        IP=$i
-      elif [ $it -eq 2 ]; then
-        PORT=$i
-      elif [ $it -eq 3 ]; then
-        APP_NAME=$i
-      elif [ $it -eq 4 ]; then
-        STREAM=$i
-      fi
-      let it=it+1
-  done
-fi
+RTMP_URL=${RTMP_URL:-false}
 
 export URL
 export ONLY_VIDEO
@@ -58,15 +33,10 @@ export VIDEO_ID
 export VIDEO_NAME
 export VIDEO_FORMAT
 export RECORDING_JSON
+export RTMP_URL
 
-export SUB
-export RTMP
-export IP
-export PORT
-export APP_NAME
-
-### Show name
-echo $VIDEO_NAME
+### Show rtmp url
+echo $RTMP_URL
 
 ### Store Recording json data ###
 
@@ -108,11 +78,11 @@ touch stop
 chmod 777 /recordings
 sleep 2
 
-if [[ "$VIDEO_NAME" == *"$SUB"* ]]; then
+if [[ "$RTMP_URL" != false ]]; then
   echo "Send rtmp"
-  <./stop ffmpeg -y -f alsa -i pulse -f x11grab -draw_mouse 0 -framerate $FRAMERATE -video_size $RESOLUTION -i :$DISPLAY_NUM -c:a aac -c:v libx264 -preset ultrafast -crf 28 -refs 4 -qmin 4 -pix_fmt yuv420p -filter:v fps=$FRAMERATE -f flv rtmp://$IP:$PORT/$APP_NAME/$STREAM
+  <./stop ffmpeg -y -f alsa -i pulse -f x11grab -draw_mouse 0 -framerate $FRAMERATE -video_size $RESOLUTION -i :$DISPLAY_NUM -c:a aac -c:v libx264 -preset ultrafast -crf 28 -refs 4 -qmin 4 -pix_fmt yuv420p -filter:v fps=$FRAMERATE -f flv $RTMP_URL
   ### Generate false video report file ###
-  ffprobe -v quiet -print_format json -show_format -show_streams /recordings/fake.mp4 > /recordings/$VIDEO_ID/$VIDEO_ID.info
+  ##ffprobe -v quiet -print_format json -show_format -show_streams /recordings/fake.mp4 > /recordings/$VIDEO_ID/$VIDEO_ID.info
 else
   if [[ "$ONLY_VIDEO" == true ]]
     then

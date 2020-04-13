@@ -442,6 +442,7 @@ public class SessionRestController {
 		Boolean hasVideo;
 		String recordingLayoutString;
 		String customLayout;
+		String rtmpUrl:
 		try {
 			sessionId = (String) params.get("session");
 			name = (String) params.get("name");
@@ -451,6 +452,7 @@ public class SessionRestController {
 			hasVideo = (Boolean) params.get("hasVideo");
 			recordingLayoutString = (String) params.get("recordingLayout");
 			customLayout = (String) params.get("customLayout");
+			rtmpUrl = (String) params.get("rtmpUrl");
 		} catch (ClassCastException e) {
 			return this.generateErrorResponse("Type error in some parameter", "/api/recordings/start",
 					HttpStatus.BAD_REQUEST);
@@ -534,7 +536,7 @@ public class SessionRestController {
 						customLayout == null ? session.getSessionProperties().defaultCustomLayout() : customLayout);
 			}
 		}
-		builder.name(name).hasAudio(hasAudio != null ? hasAudio : true).hasVideo(hasVideo != null ? hasVideo : true);
+		builder.name(name).rtmpUrl(rtmpUrl).hasAudio(hasAudio != null ? hasAudio : true).hasVideo(hasVideo != null ? hasVideo : true);
 
 		try {
 			Recording startedRecording = this.recordingManager.startRecording(session, builder.build());

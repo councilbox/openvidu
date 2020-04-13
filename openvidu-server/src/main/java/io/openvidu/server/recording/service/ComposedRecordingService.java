@@ -161,6 +161,7 @@ public class ComposedRecordingService extends RecordingService {
 		envs.add("VIDEO_NAME=" + properties.name());
 		envs.add("VIDEO_FORMAT=mp4");
 		envs.add("RECORDING_JSON=" + recording.toJson().toString());
+		envs.add("RTMP_URL=" + properties.rtmpUrl());
 
 		log.info(recording.toJson().toString());
 		log.info("Recorder connecting to url {}", layoutUrl);

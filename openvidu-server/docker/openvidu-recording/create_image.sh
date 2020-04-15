@@ -1,1 +1,1 @@
-docker build --rm -t councilbox/rtmp-recording .
+docker build --rm -t councilbox/rtmp-broadcast .

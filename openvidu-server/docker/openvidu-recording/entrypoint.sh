@@ -12,11 +12,12 @@ else
 ### Variables ###
 
 URL=${URL:-https://councilbox.com}
-RESOLUTION=${RESOLUTION:-1920x1080}
+RESOLUTION=${RESOLUTION:-640x360}
 FRAMERATE=${FRAMERATE:-25}
 WIDTH="$(cut -d'x' -f1 <<< $RESOLUTION)"
 HEIGHT="$(cut -d'x' -f2 <<< $RESOLUTION)"
 RTMP_URL=${RTMP_URL:-false}
+BITRATE=${BITRATE:-700k}
 
 export URL
 export RESOLUTION
@@ -26,9 +27,11 @@ export HEIGHT
 export RTMP_URL
 
 ### Show rtmp url
-echo $RTMP_URL
+echo "RTMP address ==> $RTMP_URL"
 ### Show url to stream
-echo $URL
+echo "URL to stream ==> $URL"
+### Show resolution, framerate, bitrate
+echo "Resolution: $RESOLUTION ; Framerate: $FRAMERATE ; Bitrate: $BITRATE"
 
 ### Get a free display identificator ###
 
@@ -65,7 +68,9 @@ sleep 2
 
 if [[ "$RTMP_URL" != false ]]; then
   echo "Send rtmp"
-  <./stop ffmpeg -y -f alsa -i pulse -f x11grab -draw_mouse 0 -framerate $FRAMERATE -video_size $RESOLUTION -i :$DISPLAY_NUM -c:a aac -c:v libx264 -preset ultrafast -crf 28 -refs 4 -qmin 4 -pix_fmt yuv420p -filter:v fps=$FRAMERATE -f flv $RTMP_URL
+  <./stop ffmpeg -y -f alsa -i pulse -f x11grab -draw_mouse 0 -framerate $FRAMERATE -video_size $RESOLUTION -i :$DISPLAY_NUM -c:a aac -c:v libx264 -b:v $BITRATE -preset ultrafast -crf 28 -refs 4 -qmin 4 -pix_fmt yuv420p -filter:v fps=$FRAMERATE -f flv $RTMP_URL
 else
   echo "Rtmp sending failed, rtmp address not received"
+fi
+
 fi

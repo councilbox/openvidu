@@ -76,7 +76,7 @@ The `.env` file looks like this:
 ```
 # OpenVidu configuration
 # ----------------------
-# Documentation: https://openvidu.io/docs/reference-docs/openvidu-server-params/
+# Documentation: https://docs.openvidu.io/en/stable/reference-docs/openvidu-config/
 
 # NOTE: This file doesn't need to quote assignment values, like most shells do.
 # All values are stored as-is, even if they contain spaces, so don't quote them.
@@ -92,15 +92,14 @@ OPENVIDU_SECRET=
 # - selfsigned:  Self signed certificate. Not recommended for production use.
 #                Users will see an ERROR when connected to web page.
 # - owncert:     Valid certificate purchased in a Internet services company.
-#                Please put the certificates in same folder as docker-compose.yml
-#                file with names certificate.key and certificate.cert.
+#                Please put the certificates files inside folder ./owncert
+#                with names certificate.key and certificate.cert
 # - letsencrypt: Generate a new certificate using letsencrypt. Please set the
 #                required contact email for Let's Encrypt in LETSENCRYPT_EMAIL
 #                variable.
 CERTIFICATE_TYPE=selfsigned
 
-# If CERTIFICATE_TYPE=letsencrypt, you need to configure a valid email for
-# notifications
+# If CERTIFICATE_TYPE=letsencrypt, you need to configure a valid email for notifications
 LETSENCRYPT_EMAIL=user@example.com
 
 ...
@@ -112,7 +111,7 @@ LETSENCRYPT_EMAIL=user@example.com
 
 ### Videoconference application
 
-By default, the [OpenVidu Call application](https://openvidu.io/docs/demos/openvidu-call/) is deployed alongside OpenVide Platform. It is accesible in the URL:
+By default, the [OpenVidu Call application](https://docs.openvidu.io/en/stable/demos/openvidu-call/) is deployed alongside OpenVide Platform. It is accesible in the URL:
 
 ```
 https://openvidu_domain_or_public_ip/
@@ -194,12 +193,6 @@ To change the configuration:
 $ ./openvidu restart
 ```
 
-Or using the provided script:
-
-```
-$ ./openvidu-restart.sh
-```
-
 ## 5. Problems
 
 ### Configuration errors
@@ -278,14 +271,21 @@ If `openvidu-server` detects some error, it will show it in the log.
    ---------------------  
    * CERTIFICATE_TYPE=selfsigned
    * OPENVIDU_CDR=false
-   * OPENVIDU_CDR_PATH=log
-   * OPENVIDU_DOMAIN_OR_PUBLIC_IP=d
-   * OPENVIDU_RECORDING=true
+   * OPENVIDU_CDR_PATH=/opt/openvidu/cdr
+   * OPENVIDU_DOMAIN_OR_PUBLIC_IP=my.domain.com
+   * OPENVIDU_RECORDING=false
    * OPENVIDU_RECORDING_AUTOSTOP-TIMEOUT=120
    * OPENVIDU_RECORDING_COMPOSED-URL=
 
 ...
 ```
+
+### Java options
+
+To use java options in openvidu-server change the property `JAVA_OPTIONS` in configuration file `.env`
+
+For more information about posible values for java option visit [Configuring Java Options](https://docs.oracle.com/cd/E37116_01/install.111210/e23737/configuring_jvm.htm#OUDIG00007)
+
 
 ### Change log level of the services
 

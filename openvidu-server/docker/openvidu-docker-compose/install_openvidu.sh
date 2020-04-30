@@ -1,33 +1,38 @@
 #!/usr/bin/env bash
 
+OPENVIDU_FOLDER=openvidu
+OPENVIDU_VERSION=master
+
 # Check docker and docker-compose installation
-docker -v > /dev/null 2>&1
-if [ $? -ne 0 ]; then
+if ! command -v docker > /dev/null; then
      echo "You don't have docker installed, please install it and re-run the command"
      exit 0
 fi
 
-docker-compose -v > /dev/null 2>&1
-if [ $? -ne 0 ]; then
+if ! command -v docker-compose > /dev/null; then
      echo "You don't have docker-compose installed, please install it and re-run the command"
      exit 0
+else
+     COMPOSE_VERSION=$(docker-compose version --short | sed "s/-rc[0-9]*//")
+     if ! printf '%s\n%s\n' "1.24" "$COMPOSE_VERSION" | sort -V -C; then
+          echo "You need a docker-compose version equal or higher than 1.24, please update your docker-compose and re-run the command"; \
+          exit 0
+     fi
 fi
-
-OPENVIDU_FOLDER=openvidu
 
 # Create folder openvidu-docker-compose
 mkdir ${OPENVIDU_FOLDER}
 
 # Download necessaries files
-curl --silent https://raw.githubusercontent.com/OpenVidu/openvidu/master/openvidu-server/docker/openvidu-docker-compose/.env \
+curl --silent https://raw.githubusercontent.com/OpenVidu/openvidu/${OPENVIDU_VERSION}/openvidu-server/docker/openvidu-docker-compose/.env \
      --output ${OPENVIDU_FOLDER}/.env
-curl --silent https://raw.githubusercontent.com/OpenVidu/openvidu/master/openvidu-server/docker/openvidu-docker-compose/docker-compose.override.yml \
+curl --silent https://raw.githubusercontent.com/OpenVidu/openvidu/${OPENVIDU_VERSION}/openvidu-server/docker/openvidu-docker-compose/docker-compose.override.yml \
      --output ${OPENVIDU_FOLDER}/docker-compose.override.yml
-curl --silent https://raw.githubusercontent.com/OpenVidu/openvidu/master/openvidu-server/docker/openvidu-docker-compose/docker-compose.yml \
+curl --silent https://raw.githubusercontent.com/OpenVidu/openvidu/${OPENVIDU_VERSION}/openvidu-server/docker/openvidu-docker-compose/docker-compose.yml \
      --output ${OPENVIDU_FOLDER}/docker-compose.yml
-curl --silent https://raw.githubusercontent.com/OpenVidu/openvidu/master/openvidu-server/docker/openvidu-docker-compose/openvidu \
+curl --silent https://raw.githubusercontent.com/OpenVidu/openvidu/${OPENVIDU_VERSION}/openvidu-server/docker/openvidu-docker-compose/openvidu \
     --output ${OPENVIDU_FOLDER}/openvidu
-curl --silent https://raw.githubusercontent.com/OpenVidu/openvidu/master/openvidu-server/docker/openvidu-docker-compose/readme.md \
+curl --silent https://raw.githubusercontent.com/OpenVidu/openvidu/${OPENVIDU_VERSION}/openvidu-server/docker/openvidu-docker-compose/readme.md \
     --output ${OPENVIDU_FOLDER}/readme.md
 
 # Add execution permissions

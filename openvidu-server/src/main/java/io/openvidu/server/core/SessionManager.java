@@ -310,8 +310,7 @@ public abstract class SessionManager {
 
 	public Token newTokenForInsecureUser(Session session, String token, String serverMetadata) {
 		Token tokenObj = new Token(token, OpenViduRole.PUBLISHER, serverMetadata != null ? serverMetadata : "",
-				this.coturnCredentialsService.isCoturnAvailable() ? this.coturnCredentialsService.createUser() : null,
-				null);
+				this.openviduConfig.isTurnadminAvailable() ? this.coturnCredentialsService.createUser() : null, null);
 		session.storeToken(tokenObj);
 		session.showTokens("Token created for insecure user");
 		return tokenObj;
@@ -430,7 +429,7 @@ public abstract class SessionManager {
 	private void startSessionGarbageCollector() {
 		if (openviduConfig.getSessionGarbageInterval() == 0) {
 			log.info(
-					"Garbage collector for non active sessions is disabled (property 'openvidu.sessions.garbage.interval' is 0)");
+					"Garbage collector for non active sessions is disabled (property 'OPENVIDU_SESSIONS_GARBAGE_INTERVAL' is 0)");
 			return;
 		}
 		TimerTask task = new TimerTask() {

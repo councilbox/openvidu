@@ -18,12 +18,16 @@
 package io.openvidu.server.config;
 
 import java.io.File;
+import java.io.IOException;
+import java.net.Inet4Address;
 import java.net.Inet6Address;
+import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -50,6 +54,7 @@ import com.google.gson.JsonSyntaxException;
 import io.openvidu.java.client.OpenViduRole;
 import io.openvidu.server.OpenViduServer;
 import io.openvidu.server.cdr.CDREventName;
+import io.openvidu.server.config.Dotenv.DotenvFormatException;
 import io.openvidu.server.recording.RecordingNotification;
 
 @Component
@@ -83,7 +88,7 @@ public class OpenviduConfig {
 		@Override
 		public String toString() {
 			return "Error [property=" + property + ", value=" + value + ", message=" + message + "]";
-		}		
+		}
 	}
 
 	private static final Logger log = LoggerFactory.getLogger(OpenviduConfig.class);
@@ -154,7 +159,7 @@ public class OpenviduConfig {
 
 	private String openviduRecordingComposedUrl;
 
-	private String serverPort;
+	private int serverPort;
 
 	private String coturnRedisDbname;
 
@@ -174,9 +179,11 @@ public class OpenviduConfig {
 
 	public static String finalUrl;
 
+	private boolean isTurnadminAvailable = false;
+
 	// Plain config properties getters
 
-	public String getServerPort() {
+	public int getServerPort() {
 		return this.serverPort;
 	}
 
@@ -287,13 +294,13 @@ public class OpenviduConfig {
 	public int getSessionGarbageThreshold() {
 		return openviduSessionsGarbageThreshold;
 	}
-	
+
 	public String getDotenvPath() {
 		return dotenvPath;
 	}
 
 	// Derived properties methods
-	
+
 	public String getSpringProfile() {
 		return springProfile;
 	}
@@ -304,6 +311,14 @@ public class OpenviduConfig {
 
 	public void setFinalUrl(String finalUrlParam) {
 		finalUrl = finalUrlParam.endsWith("/") ? (finalUrlParam) : (finalUrlParam + "/");
+	}
+
+	public boolean isTurnadminAvailable() {
+		return this.isTurnadminAvailable;
+	}
+
+	public void setTurnadminAvailable(boolean available) {
+		this.isTurnadminAvailable = available;
 	}
 
 	public OpenViduRole[] getRolesFromRecordingNotification() {
@@ -340,8 +355,12 @@ public class OpenviduConfig {
 		return !"/opt/openvidu/custom-layout".equals(path);
 	}
 
+	public String getOpenViduFrontendDefaultPath() {
+		return "dashboard";
+	}
+
 	// Properties management methods
-	
+
 	public OpenviduConfig deriveWithAdditionalPropertiesSource(Map<String, ?> propertiesSource) {
 		OpenviduConfig config = newOpenviduConfig();
 		config.propertiesSource = propertiesSource;
@@ -366,29 +385,29 @@ public class OpenviduConfig {
 	}
 
 	private String getValue(String property) {
+		return this.getValue(property, true);
+	}
 
+	private String getValue(String property, boolean storeInConfigProps) {
 		String value = null;
-
 		if (propertiesSource != null) {
-
 			Object valueObj = propertiesSource.get(property);
 			if (valueObj != null) {
 				value = valueObj.toString();
 			}
 		}
-
 		if (value == null) {
 			value = env.getProperty(property);
 		}
-
-		this.configProps.put(property, value);
-
+		if (storeInConfigProps) {
+			this.configProps.put(property, value);
+		}
 		return value;
 	}
 
 	public String getPropertyName(String propertyName) {
 		if (SHOW_PROPERTIES_AS_ENV_VARS) {
-			return propertyName.replace('.', '_').toUpperCase();
+			return propertyName.replace('.', '_').replace('-', '_').toUpperCase();
 		} else {
 			return propertyName;
 		}
@@ -405,80 +424,83 @@ public class OpenviduConfig {
 		this.configErrors.add(new Error(property, value, msg));
 	}
 
-	@PostConstruct
-	public void checkConfiguration() {
-
+	public void checkConfiguration(boolean loadDotenv) {
 		try {
-			this.checkConfigurationProperties();
+			this.checkConfigurationProperties(loadDotenv);
 		} catch (Exception e) {
 			log.error("Exception checking configuration", e);
 			addError(null, "Exception checking configuration." + e.getClass().getName() + ":" + e.getMessage());
 		}
-
 		userConfigProps = new ArrayList<>(configProps.keySet());
-
 		userConfigProps.removeAll(getNonUserProperties());
 	}
 
+	@PostConstruct
+	public void checkConfiguration() {
+		this.checkConfiguration(true);
+	}
+
 	protected List<String> getNonUserProperties() {
-		return Arrays.asList("coturn.ip", "coturn.redis.ip", "kms.uris", "server.port", "coturn.redis.dbname",
-				"coturn.redis.password", "coturn.redis.connect-timeout");
+		return Arrays.asList("server.port", "SERVER_PORT", "DOTENV_PATH", "COTURN_IP", "COTURN_REDIS_IP", "KMS_URIS",
+				"COTURN_REDIS_DBNAME", "COTURN_REDIS_PASSWORD", "COTURN_REDIS_CONNECT_TIMEOUT");
 	}
 
 	// Properties
 
-	protected void checkConfigurationProperties() {
+	protected void checkConfigurationProperties(boolean loadDotenv) {
 
-		
-		
-		serverPort = getValue("server.port");
+		if (loadDotenv) {
+			dotenvPath = getValue("DOTENV_PATH");
+			this.populatePropertySourceFromDotenv();
+		}
 
-		coturnRedisDbname = getValue("coturn.redis.dbname");
-
-		coturnRedisPassword = getValue("coturn.redis.password");
-
-		coturnRedisConnectTimeout = getValue("coturn.redis.connect-timeout");
-
-		openviduSecret = asNonEmptyString("openvidu.secret");
-
+		checkHttpsPort();
 		checkOpenviduPublicurl();
 
-		openviduCdr = asBoolean("openvidu.cdr");
+		coturnRedisDbname = getValue("COTURN_REDIS_DBNAME");
 
-		openviduCdrPath = asFileSystemPath("openvidu.cdr.path");
+		coturnRedisPassword = getValue("COTURN_REDIS_PASSWORD");
 
-		openviduRecording = asBoolean("openvidu.recording");
-		openviduRecordingPublicAccess = asBoolean("openvidu.recording.public-access");
-		openviduRecordingAutostopTimeout = asNonNegativeInteger("openvidu.recording.autostop-timeout");
-		openviduRecordingPath = asFileSystemPath("openvidu.recording.path");
-		openviduRecordingCustomLayout = asFileSystemPath("openvidu.recording.custom-layout");
-		openviduRecordingVersion = asNonEmptyString("openvidu.recording.version");
-		openviduRecordingComposedUrl = asOptionalURL("openvidu.recording.composed-url");
+		coturnRedisConnectTimeout = getValue("COTURN_REDIS_CONNECT_TIMEOUT");
+
+		openviduSecret = asNonEmptyString("OPENVIDU_SECRET");
+
+		openviduCdr = asBoolean("OPENVIDU_CDR");
+		openviduCdrPath = openviduCdr ? asWritableFileSystemPath("OPENVIDU_CDR_PATH")
+				: asFileSystemPath("OPENVIDU_CDR_PATH");
+
+		openviduRecording = asBoolean("OPENVIDU_RECORDING");
+		openviduRecordingPath = openviduRecording ? asWritableFileSystemPath("OPENVIDU_RECORDING_PATH")
+				: asFileSystemPath("OPENVIDU_RECORDING_PATH");
+		openviduRecordingPublicAccess = asBoolean("OPENVIDU_RECORDING_PUBLIC_ACCESS");
+		openviduRecordingAutostopTimeout = asNonNegativeInteger("OPENVIDU_RECORDING_AUTOSTOP_TIMEOUT");
+		openviduRecordingCustomLayout = asFileSystemPath("OPENVIDU_RECORDING_CUSTOM_LAYOUT");
+		openviduRecordingVersion = asNonEmptyString("OPENVIDU_RECORDING_VERSION");
+		openviduRecordingComposedUrl = asOptionalURL("OPENVIDU_RECORDING_COMPOSED_URL");
 		checkOpenviduRecordingNotification();
 
-		openviduStreamsVideoMaxRecvBandwidth = asNonNegativeInteger("openvidu.streams.video.max-recv-bandwidth");
-		openviduStreamsVideoMinRecvBandwidth = asNonNegativeInteger("openvidu.streams.video.min-recv-bandwidth");
-		openviduStreamsVideoMaxSendBandwidth = asNonNegativeInteger("openvidu.streams.video.max-send-bandwidth");
-		openviduStreamsVideoMinSendBandwidth = asNonNegativeInteger("openvidu.streams.video.min-send-bandwidth");
-		
-		openviduSessionsGarbageInterval = asNonNegativeInteger("openvidu.sessions.garbage.interval");
-		openviduSessionsGarbageThreshold = asNonNegativeInteger("openvidu.sessions.garbage.threshold");
+		openviduStreamsVideoMaxRecvBandwidth = asNonNegativeInteger("OPENVIDU_STREAMS_VIDEO_MAX_RECV_BANDWIDTH");
+		openviduStreamsVideoMinRecvBandwidth = asNonNegativeInteger("OPENVIDU_STREAMS_VIDEO_MIN_RECV_BANDWIDTH");
+		openviduStreamsVideoMaxSendBandwidth = asNonNegativeInteger("OPENVIDU_STREAMS_VIDEO_MAX_SEND_BANDWIDTH");
+		openviduStreamsVideoMinSendBandwidth = asNonNegativeInteger("OPENVIDU_STREAMS_VIDEO_MIN_SEND_BANDWIDTH");
+
+		openviduSessionsGarbageInterval = asNonNegativeInteger("OPENVIDU_SESSIONS_GARBAGE_INTERVAL");
+		openviduSessionsGarbageThreshold = asNonNegativeInteger("OPENVIDU_SESSIONS_GARBAGE_THRESHOLD");
 
 		kmsUrisList = checkKmsUris();
 
 		checkCoturnIp();
 
-		coturnRedisIp = asOptionalInetAddress("coturn.redis.ip");
+		coturnRedisIp = asOptionalInetAddress("COTURN_REDIS_IP");
 
 		checkWebhook();
 
 		checkCertificateType();
-		
-		dotenvPath = getValue("dotenv.path");
+
 	}
 
 	private void checkCertificateType() {
-		String property = "certificate.type";
+		String property = "CERTIFICATE_TYPE";
 		certificateType = asNonEmptyString(property);
 
 		if (certificateType != null && !certificateType.isEmpty()) {
@@ -490,7 +512,8 @@ public class OpenviduConfig {
 	}
 
 	private void checkCoturnIp() {
-		coturnIp = getValue("coturn.ip");
+		String property = "COTURN_IP";
+		coturnIp = asOptionalIPv4OrIPv6(property);
 
 		if (coturnIp == null || this.coturnIp.isEmpty()) {
 			try {
@@ -502,36 +525,37 @@ public class OpenviduConfig {
 	}
 
 	private void checkWebhook() {
-		openviduWebhookEnabled = asBoolean("openvidu.webhook");
-		openviduWebhookEndpoint = asOptionalURL("openvidu.webhook.endpoint");
+		openviduWebhookEnabled = asBoolean("OPENVIDU_WEBHOOK");
+		openviduWebhookEndpoint = asOptionalURL("OPENVIDU_WEBHOOK_ENDPOINT");
 		webhookHeadersList = checkWebhookHeaders();
 		webhookEventsList = getWebhookEvents();
 
 		if (openviduWebhookEnabled && (openviduWebhookEndpoint == null || openviduWebhookEndpoint.isEmpty())) {
-			addError("openvidu.webhook.endpoint",
-					"With " + getPropertyName("openvidu.webhook") + "=true, this property cannot be empty");
+			addError("OPENVIDU_WEBHOOK_ENDPOINT", "With OPENVIDU_WEBHOOK=true, this property cannot be empty");
 		}
 	}
 
 	private void checkOpenviduRecordingNotification() {
-
-		String recordingNotif = asNonEmptyString("openvidu.recording.notification");
+		String recordingNotif = asNonEmptyString("OPENVIDU_RECORDING_NOTIFICATION");
 		try {
 			openviduRecordingNotification = RecordingNotification.valueOf(recordingNotif);
 		} catch (IllegalArgumentException e) {
-			addError("openvidu.recording.notification",
+			addError("OPENVIDU_RECORDING_NOTIFICATION",
 					"Must be one of the values " + Arrays.asList(RecordingNotification.values()));
 		}
 	}
 
 	private void checkOpenviduPublicurl() {
-		final String property = "openvidu.domain.or.public.ip";
+		final String property = "OPENVIDU_DOMAIN_OR_PUBLIC_IP";
 		String domain = getValue(property);
 
 		if (domain != null && !domain.isEmpty()) {
 			this.openviduPublicUrl = "https://" + domain;
+			if (this.serverPort != 443) {
+				this.openviduPublicUrl += (":" + this.serverPort);
+			}
 		} else {
-			final String urlProperty = "openvidu.publicurl";
+			final String urlProperty = "OPENVIDU_PUBLICURL";
 			String publicurl = getValue(urlProperty);
 			if (publicurl == null || publicurl.isEmpty()) {
 				addError(property, "Cannot be empty");
@@ -549,6 +573,38 @@ public class OpenviduConfig {
 
 		if (openviduPublicUrl != null && !openviduPublicUrl.isEmpty()) {
 			calculatePublicUrl();
+		}
+	}
+
+	private void checkHttpsPort() {
+		String property = "HTTPS_PORT";
+		String httpsPort = getValue(property);
+		if (httpsPort == null) {
+			// This should only occur on dev container
+			property = "SERVER_PORT";
+			httpsPort = getValue(property);
+			if (httpsPort == null) {
+				property = "server.port";
+				httpsPort = getValue(property, false);
+				if (httpsPort == null || httpsPort.isEmpty()) {
+					addError(property, "Cannot be undefined");
+					return;
+				}
+			}
+		}
+		int httpsPortNumber = 0;
+		try {
+			httpsPortNumber = Integer.parseInt(httpsPort);
+		} catch (NumberFormatException e) {
+			addError(property, "Is not a valid port. Must be an integer. " + e.getMessage());
+			return;
+		}
+
+		if (httpsPortNumber > 0 && httpsPortNumber <= 65535) {
+			serverPort = httpsPortNumber;
+		} else {
+			addError(property, "Is not a valid port. Valid port range exceeded with value " + httpsPortNumber);
+			return;
 		}
 	}
 
@@ -596,7 +652,7 @@ public class OpenviduConfig {
 
 	public List<String> checkKmsUris() {
 
-		String property = "kms.uris";
+		String property = "KMS_URIS";
 
 		return asKmsUris(property, getValue(property));
 
@@ -627,7 +683,7 @@ public class OpenviduConfig {
 	}
 
 	private List<Header> checkWebhookHeaders() {
-		String property = "openvidu.webhook.headers";
+		String property = "OPENVIDU_WEBHOOK_HEADERS";
 		List<String> headers = asJsonStringsArray(property);
 		List<Header> headerList = new ArrayList<>();
 
@@ -652,7 +708,7 @@ public class OpenviduConfig {
 	}
 
 	private List<CDREventName> getWebhookEvents() {
-		String property = "openvidu.webhook.events";
+		String property = "OPENVIDU_WEBHOOK_EVENTS";
 		List<String> events = asJsonStringsArray(property);
 		List<CDREventName> eventList = new ArrayList<>();
 
@@ -741,6 +797,26 @@ public class OpenviduConfig {
 		return inetAddress;
 	}
 
+	protected String asOptionalIPv4OrIPv6(String property) {
+		String ip = getValue(property);
+		if (ip != null && !ip.isEmpty()) {
+			boolean isIP;
+			try {
+				final InetAddress inet = InetAddress.getByName(ip);
+				isIP = inet instanceof Inet4Address || inet instanceof Inet6Address;
+				if (isIP) {
+					ip = inet.getHostAddress();
+				}
+			} catch (final UnknownHostException e) {
+				isIP = false;
+			}
+			if (!isIP) {
+				addError(property, "Is not a valid IP Address (IPv4 or IPv6)");
+			}
+		}
+		return ip;
+	}
+
 	protected String asFileSystemPath(String property) {
 		try {
 			String stringPath = this.asNonEmptyString(property);
@@ -751,6 +827,30 @@ public class OpenviduConfig {
 			return stringPath;
 		} catch (Exception e) {
 			addError(property, "Is not a valid file system path. " + e.getMessage());
+			return null;
+		}
+	}
+
+	protected String asWritableFileSystemPath(String property) {
+		try {
+			String stringPath = this.asNonEmptyString(property);
+			Paths.get(stringPath);
+			File f = new File(stringPath);
+			f.getCanonicalPath();
+			f.toURI().toString();
+			if (!f.exists()) {
+				if (!f.mkdirs()) {
+					throw new Exception(
+							"The path does not exist and OpenVidu Server does not have enough permissions to create it");
+				}
+			}
+			if (!f.canWrite()) {
+				throw new Exception(
+						"OpenVidu Server does not have permissions to write on path " + f.getCanonicalPath());
+			}
+			return stringPath;
+		} catch (Exception e) {
+			addError(property, "Is not a valid writable file system path. " + e.getMessage());
 			return null;
 		}
 	}
@@ -799,6 +899,56 @@ public class OpenviduConfig {
 		} catch (MalformedURLException | URISyntaxException e) {
 			throw new Exception("String '" + url + "' has not a valid URL format: " + e.getMessage());
 		}
+	}
+
+	protected void populatePropertySourceFromDotenv() {
+		File dotenvFile = this.getDotenvFile();
+		if (dotenvFile != null) {
+			if (dotenvFile.canRead()) {
+				Dotenv dotenv = new Dotenv();
+				try {
+					dotenv.read(dotenvFile.toPath());
+					this.propertiesSource = dotenv.getAll();
+					log.info("Configuration properties read from file {}", dotenvFile.getAbsolutePath());
+				} catch (IOException | DotenvFormatException e) {
+					log.error("Error reading properties from .env file: {}", e.getMessage());
+					addError(null, e.getMessage());
+				}
+			} else {
+				log.error("OpenVidu does not have read permissions over .env file at {}", this.getDotenvPath());
+			}
+		}
+	}
+
+	public Path getDotenvFilePathFromDotenvPath(String dotenvPathProperty) {
+		if (dotenvPathProperty.endsWith(".env")) {
+			// Is file
+			return Paths.get(dotenvPathProperty);
+		} else if (dotenvPathProperty.endsWith("/")) {
+			// Is folder
+			return Paths.get(dotenvPathProperty + ".env");
+		} else {
+			// Is a folder not ending in "/"
+			return Paths.get(dotenvPathProperty + "/.env");
+		}
+	}
+
+	public File getDotenvFile() {
+		if (getDotenvPath() != null && !getDotenvPath().isEmpty()) {
+
+			Path path = getDotenvFilePathFromDotenvPath(getDotenvPath());
+			File file = path.toFile();
+
+			if (file.exists()) {
+				return file;
+			} else {
+				log.error(".env file not found at {}", path.toAbsolutePath().toString());
+			}
+
+		} else {
+			log.warn("DOTENV_PATH configuration property is not defined");
+		}
+		return null;
 	}
 
 }

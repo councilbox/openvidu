@@ -135,11 +135,11 @@ public class RecordingManager {
 				} else if (e.getCodeValue() == Code.RECORDING_PATH_NOT_VALID.getValue()) {
 					finalErrorMessage = "Error initializing recording path \""
 							+ this.openviduConfig.getOpenViduRecordingPath()
-							+ "\" set with system property \"openvidu.recording.path\"";
+							+ "\" set with system property \"OPENVIDU_RECORDING_PATH\"";
 				} else if (e.getCodeValue() == Code.RECORDING_FILE_EMPTY_ERROR.getValue()) {
 					finalErrorMessage = "Error initializing recording custom layouts path \""
 							+ this.openviduConfig.getOpenviduRecordingCustomLayout()
-							+ "\" set with system property \"openvidu.recording.custom-layout\"";
+							+ "\" set with system property \"OPENVIDU_RECORDING_CUSTOM_LAYOUT\"";
 				}
 				log.error(finalErrorMessage + ". Shutting down OpenVidu Server");
 				System.exit(1);
@@ -212,7 +212,7 @@ public class RecordingManager {
 			if ("docker".equals(openviduConfig.getSpringProfile())) {
 				final String NEW_LINE = System.getProperty("line.separator");
 				message += ": make sure you include the following flags in your \"docker run\" command:" + NEW_LINE
-						+ "    -e openvidu.recording.path=/YOUR/PATH/TO/VIDEO/FILES" + NEW_LINE
+						+ "    -e OPENVIDU_RECORDING_PATH=/YOUR/PATH/TO/VIDEO/FILES" + NEW_LINE
 						+ "    -e MY_UID=$(id -u $USER)" + NEW_LINE + "    -v /var/run/docker.sock:/var/run/docker.sock"
 						+ NEW_LINE + "    -v /YOUR/PATH/TO/VIDEO/FILES:/YOUR/PATH/TO/VIDEO/FILES" + NEW_LINE;
 			} else {
@@ -480,34 +480,46 @@ public class RecordingManager {
 						recordingId, this.openviduConfig.getOpenviduRecordingAutostopTimeout());
 
 				if (this.automaticRecordingStopThreads.remove(session.getSessionId()) != null) {
-
 					boolean alreadyUnlocked = false;
 					try {
-						session.closingLock.writeLock().lock();
-						if (session.isClosed()) {
-							return;
-						}
-
-						if (session.getParticipants().size() == 0 || session.onlyRecorderParticipant()) {
-							// Close session if there are no participants connected (RECORDER does not
-							// count) and publishing
-							log.info("Closing session {} after automatic stop of recording {}", session.getSessionId(),
-									recordingId);
-							sessionManager.closeSessionAndEmptyCollections(session, EndReason.automaticStop, true);
+						if (session.closingLock.writeLock().tryLock(15, TimeUnit.SECONDS)) {
+							try {
+								if (session.isClosed()) {
+									return;
+								}
+								if (session.getParticipants().size() == 0 || session.onlyRecorderParticipant()) {
+									// Close session if there are no participants connected (RECORDER does not
+									// count) and publishing
+									log.info("Closing session {} after automatic stop of recording {}",
+											session.getSessionId(), recordingId);
+									sessionManager.closeSessionAndEmptyCollections(session, EndReason.automaticStop,
+											true);
+								} else {
+									// There are users connected, but no one is publishing
+									// We don't need the lock if session is not closing
+									session.closingLock.writeLock().unlock();
+									alreadyUnlocked = true;
+									log.info(
+											"Automatic stopping recording {}. There are users connected to session {}, but no one is publishing",
+											recordingId, session.getSessionId());
+									this.stopRecording(session, recordingId, EndReason.automaticStop);
+								}
+							} finally {
+								if (!alreadyUnlocked) {
+									session.closingLock.writeLock().unlock();
+								}
+							}
 						} else {
-							// There are users connected, but no one is publishing
-							session.closingLock.writeLock().unlock(); // We don't need the lock if session's not closing
-							alreadyUnlocked = true;
-							log.info(
-									"Automatic stopping recording {}. There are users connected to session {}, but no one is publishing",
-									recordingId, session.getSessionId());
-							this.stopRecording(session, recordingId, EndReason.automaticStop);
+							log.error(
+									"Timeout waiting for Session {} closing lock to be available for automatic recording stop thred",
+									session.getSessionId());
 						}
-					} finally {
-						if (!alreadyUnlocked) {
-							session.closingLock.writeLock().unlock();
-						}
+					} catch (InterruptedException e) {
+						log.error(
+								"InterruptedException while waiting for Session {} closing lock to be available for automatic recording stop thred",
+								session.getSessionId());
 					}
+
 				} else {
 					// This code shouldn't be reachable
 					log.warn("Recording {} was already automatically stopped by a previous thread", recordingId);
@@ -523,23 +535,34 @@ public class RecordingManager {
 		if (future != null) {
 			boolean cancelled = future.cancel(false);
 			try {
-				session.closingLock.writeLock().lock();
-				if (session.isClosed()) {
-					return false;
-				}
-				if (session.getParticipants().size() == 0 || session.onlyRecorderParticipant()) {
-					// Close session if there are no participants connected (except for RECORDER).
-					// This code will only be executed if recording is manually stopped during the
-					// automatic stop timeout, so the session must be also closed
-					log.info(
-							"Ongoing recording of session {} was explicetly stopped within timeout for automatic recording stop. Closing session",
+				if (session.closingLock.writeLock().tryLock(15, TimeUnit.SECONDS)) {
+					try {
+						if (session.isClosed()) {
+							return false;
+						}
+						if (session.getParticipants().size() == 0 || session.onlyRecorderParticipant()) {
+							// Close session if there are no participants connected (except for RECORDER).
+							// This code will only be executed if recording is manually stopped during the
+							// automatic stop timeout, so the session must be also closed
+							log.info(
+									"Ongoing recording of session {} was explicetly stopped within timeout for automatic recording stop. Closing session",
+									session.getSessionId());
+							sessionManager.closeSessionAndEmptyCollections(session, reason, false);
+						}
+					} finally {
+						session.closingLock.writeLock().unlock();
+					}
+				} else {
+					log.error(
+							"Timeout waiting for Session {} closing lock to be available for aborting automatic recording stop thred",
 							session.getSessionId());
-					sessionManager.closeSessionAndEmptyCollections(session, reason, false);
 				}
-				return cancelled;
-			} finally {
-				session.closingLock.writeLock().unlock();
+			} catch (InterruptedException e) {
+				log.error(
+						"InterruptedException while waiting for Session {} closing lock to be available for aborting automatic recording stop thred",
+						session.getSessionId());
 			}
+			return cancelled;
 		} else {
 			return true;
 		}
@@ -626,10 +649,10 @@ public class RecordingManager {
 
 		// Check Kurento Media Server write permissions in recording path
 		if (this.kmsManager.getKmss().isEmpty()) {
-			log.warn("No KMSs were defined in kms.uris array. Recording path check aborted");
+			log.warn("No KMSs were defined in KMS_URIS array. Recording path check aborted");
 		} else {
 
-			MediaPipeline pipeline = this.kmsManager.getLessLoadedAndRunningKms().getKurentoClient()
+			MediaPipeline pipeline = this.kmsManager.getLessLoadedConnectedAndRunningKms().getKurentoClient()
 					.createMediaPipeline();
 			RecorderEndpoint recorder = new RecorderEndpoint.Builder(pipeline, "file://" + testFilePath).build();
 
@@ -685,7 +708,7 @@ public class RecordingManager {
 		}
 
 		if (openviduConfig.openviduRecordingCustomLayoutChanged(openviduRecordingCustomLayout)) {
-			// Property openvidu.recording.custom-layout changed
+			// Property OPENVIDU_RECORDING_CUSTOM_LAYOUT changed
 			File dir = new File(openviduRecordingCustomLayout);
 			if (dir.exists()) {
 				if (!dir.isDirectory()) {
@@ -710,7 +733,7 @@ public class RecordingManager {
 				try {
 					Files.createDirectories(dir.toPath());
 					log.warn(
-							"OpenVidu custom layouts path (system property 'openvidu.recording.custom-layout') has been created, being folder {}. "
+							"OpenVidu custom layouts path (system property 'OPENVIDU_RECORDING_CUSTOM_LAYOUT') has been created, being folder {}. "
 									+ "It is an empty folder, so no custom layout is currently present",
 							dir.getAbsolutePath());
 				} catch (IOException e) {

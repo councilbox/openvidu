@@ -21,7 +21,7 @@ import { Filter } from './Filter';
 import { Session } from './Session';
 import { StreamManager } from './StreamManager';
 import { Subscriber } from './Subscriber';
-import { EventDispatcher } from '../OpenViduInternal/Interfaces/Public/EventDispatcher';
+import { EventDispatcher } from './EventDispatcher';
 import { InboundStreamOptions } from '../OpenViduInternal/Interfaces/Private/InboundStreamOptions';
 import { OutboundStreamOptions } from '../OpenViduInternal/Interfaces/Private/OutboundStreamOptions';
 import { WebRtcPeer, WebRtcPeerSendonly, WebRtcPeerRecvonly, WebRtcPeerSendrecv } from '../OpenViduInternal/WebRtcPeer/WebRtcPeer';
@@ -35,7 +35,6 @@ import { OpenViduError, OpenViduErrorName } from '../OpenViduInternal/Enums/Open
  * @hidden
  */
 import hark = require('hark');
-import EventEmitter = require('wolfy87-eventemitter');
 import platform = require('platform');
 
 
@@ -44,7 +43,7 @@ import platform = require('platform');
  * Each [[Publisher]] and [[Subscriber]] has an attribute of type Stream, as they give access
  * to one of them (sending and receiving it, respectively)
  */
-export class Stream implements EventDispatcher {
+export class Stream extends EventDispatcher {
 
     /**
      * The Connection object that is publishing the stream
@@ -128,11 +127,6 @@ export class Stream implements EventDispatcher {
      */
     filter: Filter;
 
-    /**
-     * @hidden
-     */
-    ee = new EventEmitter();
-
     private webRtcPeer: WebRtcPeer;
     private mediaStream: MediaStream;
     private webRtcStats: WebRtcStats;
@@ -195,12 +189,18 @@ export class Stream implements EventDispatcher {
      * @hidden
      */
     harkOptions;
+    /**
+     * @hidden
+     */
+    localMediaStreamWhenSubscribedToRemote: MediaStream;
 
 
     /**
      * @hidden
      */
     constructor(session: Session, options: InboundStreamOptions | OutboundStreamOptions | {}) {
+
+        super();
 
         this.session = session;
 
@@ -261,14 +261,7 @@ export class Stream implements EventDispatcher {
      * See [[EventDispatcher.on]]
      */
     on(type: string, handler: (event: Event) => void): EventDispatcher {
-        this.ee.on(type, event => {
-            if (event) {
-                console.info("Event '" + type + "' triggered by stream '" + this.streamId + "'", event);
-            } else {
-                console.info("Event '" + type + "' triggered by stream '" + this.streamId + "'");
-            }
-            handler(event);
-        });
+        super.onAux(type, "Event '" + type + "' triggered by stream '" + this.streamId + "'", handler);
         return this;
     }
 
@@ -277,14 +270,7 @@ export class Stream implements EventDispatcher {
      * See [[EventDispatcher.once]]
      */
     once(type: string, handler: (event: Event) => void): EventDispatcher {
-        this.ee.once(type, event => {
-            if (event) {
-                console.info("Event '" + type + "' triggered once by stream '" + this.streamId + "'", event);
-            } else {
-                console.info("Event '" + type + "' triggered once by stream '" + this.streamId + "'");
-            }
-            handler(event);
-        });
+        super.onceAux(type, "Event '" + type + "' triggered once by stream '" + this.streamId + "'", handler);
         return this;
     }
 
@@ -293,11 +279,7 @@ export class Stream implements EventDispatcher {
      * See [[EventDispatcher.off]]
      */
     off(type: string, handler?: (event: Event) => void): EventDispatcher {
-        if (!handler) {
-            this.ee.removeAllListeners(type);
-        } else {
-            this.ee.off(type, handler);
-        }
+        super.off(type, handler);
         return this;
     }
 
@@ -494,6 +476,16 @@ export class Stream implements EventDispatcher {
                 track.stop();
             });
             delete this.mediaStream;
+        }
+        // If subscribeToRemote local MediaStream must be stopped
+        if (this.localMediaStreamWhenSubscribedToRemote) {
+            this.localMediaStreamWhenSubscribedToRemote.getAudioTracks().forEach((track) => {
+                track.stop();
+            });
+            this.localMediaStreamWhenSubscribedToRemote.getVideoTracks().forEach((track) => {
+                track.stop();
+            });
+            delete this.localMediaStreamWhenSubscribedToRemote;
         }
         if (!!this.speechEvent) {
             if (!!this.speechEvent.stop) {
@@ -863,6 +855,7 @@ export class Stream implements EventDispatcher {
                                 this.isLocalStreamPublished = true;
                                 this.publishedOnce = true;
                                 if (this.displayMyRemote()) {
+                                    this.localMediaStreamWhenSubscribedToRemote = this.mediaStream;
                                     this.remotePeerSuccessfullyEstablished();
                                 }
                                 if (reconnect) {

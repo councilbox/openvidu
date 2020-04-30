@@ -3,19 +3,19 @@ MAINTAINER openvidu@gmail.com
 
 # Install Java, supervisor and netstat
 RUN apt-get update && apt-get install -y \
+  curl \
+  wget \
   openjdk-8-jre \
-  supervisor \
+  coturn \
 && rm -rf /var/lib/apt/lists/*
-
-# Configure supervisor
-RUN mkdir -p /var/log/supervisor
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Copy OpenVidu Server
 COPY openvidu-server.jar /
+COPY ./entrypoint.sh /usr/local/bin
+COPY ./discover_my_public_ip.sh /usr/local/bin
+RUN chmod +x /usr/local/bin/entrypoint.sh && \
+    chmod +x /usr/local/bin/discover_my_public_ip.sh
 
 EXPOSE 4443
-EXPOSE 8888
 
-# Exec supervisord
-CMD ["/usr/bin/supervisord"]
+CMD /usr/local/bin/entrypoint.sh

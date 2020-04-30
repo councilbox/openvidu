@@ -19,13 +19,19 @@ package io.openvidu.server.core;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
 import org.apache.commons.lang3.RandomStringUtils;
@@ -82,8 +88,8 @@ public abstract class SessionManager {
 
 	public FormatChecker formatChecker = new FormatChecker();
 
-	protected ConcurrentMap<String, Session> sessions = new ConcurrentHashMap<>();
-	protected ConcurrentMap<String, Session> sessionsNotActive = new ConcurrentHashMap<>();
+	final protected ConcurrentMap<String, Session> sessions = new ConcurrentHashMap<>();
+	final protected ConcurrentMap<String, Session> sessionsNotActive = new ConcurrentHashMap<>();
 	protected ConcurrentMap<String, ConcurrentHashMap<String, Participant>> sessionidParticipantpublicidParticipant = new ConcurrentHashMap<>();
 	protected ConcurrentMap<String, ConcurrentHashMap<String, FinalUser>> sessionidFinalUsers = new ConcurrentHashMap<>();
 	protected ConcurrentMap<String, ConcurrentLinkedQueue<CDREventRecording>> sessionidAccumulatedRecordings = new ConcurrentHashMap<>();
@@ -281,7 +287,10 @@ public abstract class SessionManager {
 
 	public Session storeSessionNotActive(Session sessionNotActive) {
 		final String sessionId = sessionNotActive.getSessionId();
-		this.sessionsNotActive.put(sessionId, sessionNotActive);
+		if (this.sessionsNotActive.putIfAbsent(sessionId, sessionNotActive) != null) {
+			log.warn("Concurrent initialization of session {}", sessionId);
+			return this.sessionsNotActive.get(sessionId);
+		}
 		this.initializeCollections(sessionId);
 		return sessionNotActive;
 	}
@@ -301,8 +310,7 @@ public abstract class SessionManager {
 
 	public Token newTokenForInsecureUser(Session session, String token, String serverMetadata) {
 		Token tokenObj = new Token(token, OpenViduRole.PUBLISHER, serverMetadata != null ? serverMetadata : "",
-				this.coturnCredentialsService.isCoturnAvailable() ? this.coturnCredentialsService.createUser() : null,
-				null);
+				this.openviduConfig.isTurnadminAvailable() ? this.coturnCredentialsService.createUser() : null, null);
 		session.storeToken(tokenObj);
 		session.showTokens("Token created for insecure user");
 		return tokenObj;
@@ -417,6 +425,69 @@ public abstract class SessionManager {
 		}
 	}
 
+	@PostConstruct
+	private void startSessionGarbageCollector() {
+		if (openviduConfig.getSessionGarbageInterval() == 0) {
+			log.info(
+					"Garbage collector for non active sessions is disabled (property 'OPENVIDU_SESSIONS_GARBAGE_INTERVAL' is 0)");
+			return;
+		}
+		TimerTask task = new TimerTask() {
+			@Override
+			public void run() {
+				// Remove all non active sessions created more than the specified time
+				log.info("Running non active sessions garbage collector...");
+				final long currentMillis = System.currentTimeMillis();
+
+				// Loop through all non active sessions. Safely remove them and clean all of
+				// their data if their threshold has elapsed
+				for (Iterator<Entry<String, Session>> iter = sessionsNotActive.entrySet().iterator(); iter.hasNext();) {
+					final Session sessionNotActive = iter.next().getValue();
+					final String sessionId = sessionNotActive.getSessionId();
+					long sessionExistsSince = currentMillis - sessionNotActive.getStartTime();
+					if (sessionExistsSince > (openviduConfig.getSessionGarbageThreshold() * 1000)) {
+						try {
+							if (sessionNotActive.closingLock.writeLock().tryLock(15, TimeUnit.SECONDS)) {
+								try {
+									if (sessions.containsKey(sessionId)) {
+										// The session passed to active during lock wait
+										continue;
+									}
+									iter.remove();
+									cleanCollections(sessionId);
+									log.info("Non active session {} cleaned up by garbage collector", sessionId);
+								} finally {
+									sessionNotActive.closingLock.writeLock().unlock();
+								}
+							} else {
+								log.error(
+										"Timeout waiting for Session closing lock to be available for garbage collector to clean session {}",
+										sessionId);
+							}
+						} catch (InterruptedException e) {
+							log.error(
+									"InterruptedException while waiting for Session closing lock to be available for garbage collector to clean session {}",
+									sessionId);
+						}
+					}
+				}
+
+				// Warn about possible ghost sessions
+				for (Iterator<Entry<String, Session>> iter = sessions.entrySet().iterator(); iter.hasNext();) {
+					final Session sessionActive = iter.next().getValue();
+					if (sessionActive.getParticipants().size() == 0) {
+						log.warn("Possible ghost session {}", sessionActive.getSessionId());
+					}
+				}
+			}
+		};
+		new Timer().scheduleAtFixedRate(task, openviduConfig.getSessionGarbageInterval() * 1000,
+				openviduConfig.getSessionGarbageInterval() * 1000);
+		log.info(
+				"Garbage collector for non active sessions initialized. Running every {} seconds and cleaning up non active Sessions more than {} seconds old",
+				openviduConfig.getSessionGarbageInterval(), openviduConfig.getSessionGarbageThreshold());
+	}
+
 	/**
 	 * Closes an existing session by releasing all resources that were allocated for
 	 * it. Once closed, the session can be reopened (will be empty and it will use
@@ -455,13 +526,20 @@ public abstract class SessionManager {
 			// to the session. That is: if the session was in the automatic recording stop
 			// timeout with INDIVIDUAL recording (no docker participant connected)
 			try {
-				session.closingLock.writeLock().lock();
-				if (session.isClosed()) {
-					return;
+				if (session.closingLock.writeLock().tryLock(15, TimeUnit.SECONDS)) {
+					try {
+						if (session.isClosed()) {
+							return;
+						}
+						this.closeSessionAndEmptyCollections(session, reason, true);
+					} finally {
+						session.closingLock.writeLock().unlock();
+					}
+				} else {
+					log.error("Timeout waiting for Session {} closing lock to be available", sessionId);
 				}
-				this.closeSessionAndEmptyCollections(session, reason, true);
-			} finally {
-				session.closingLock.writeLock().unlock();
+			} catch (InterruptedException e) {
+				log.error("InterruptedException while waiting for Session {} closing lock to be available", sessionId);
 			}
 		}
 	}
@@ -480,7 +558,12 @@ public abstract class SessionManager {
 		final String mediaNodeId = session.getMediaNodeId();
 
 		if (session.close(reason)) {
-			sessionEventsHandler.onSessionClosed(session.getSessionId(), reason);
+			try {
+				sessionEventsHandler.onSessionClosed(session.getSessionId(), reason);
+			} catch (Exception e) {
+				log.error("Error recording 'sessionDestroyed' event for session {}: {} - {}", session.getSessionId(),
+						e.getClass().getName(), e.getMessage());
+			}
 		}
 
 		this.cleanCollections(session.getSessionId());

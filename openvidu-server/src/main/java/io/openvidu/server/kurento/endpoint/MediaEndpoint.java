@@ -22,7 +22,8 @@ import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.kurento.client.BaseRtpEndpoint;
 import org.kurento.client.Continuation;
@@ -37,11 +38,13 @@ import org.kurento.client.PlayerEndpoint;
 import org.kurento.client.RtpEndpoint;
 import org.kurento.client.SdpEndpoint;
 import org.kurento.client.WebRtcEndpoint;
+import org.kurento.client.internal.server.KurentoServerException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 
 import io.openvidu.client.OpenViduException;
@@ -92,7 +95,10 @@ public abstract class MediaEndpoint {
 	public String selectedLocalIceCandidate;
 	public String selectedRemoteIceCandidate;
 	public Queue<KmsEvent> kmsEvents = new ConcurrentLinkedQueue<>();
-	public Future<?> kmsWebrtcStatsThread;
+
+	public Runnable kmsWebrtcStatsRunnable;
+	public AtomicInteger statsNotFoundErrors = new AtomicInteger(0);
+	public AtomicBoolean cancelStatsLoop = new AtomicBoolean(false);
 
 	/**
 	 * Constructor to set the owner, the endpoint's name and the media pipeline.
@@ -208,10 +214,10 @@ public abstract class MediaEndpoint {
 			internalEndpointInitialization(endpointLatch);
 		} else {
 			endpointLatch.countDown();
-		}
-		if (this.isWeb()) {
-			while (!candidates.isEmpty()) {
-				internalAddIceCandidate(candidates.removeFirst());
+			if (this.isWeb()) {
+				while (!candidates.isEmpty()) {
+					internalAddIceCandidate(candidates.removeFirst());
+				}
 			}
 		}
 		return old;
@@ -278,14 +284,66 @@ public abstract class MediaEndpoint {
 				public void onSuccess(WebRtcEndpoint result) throws Exception {
 					webEndpoint = result;
 
-					webEndpoint.setMaxVideoRecvBandwidth(maxRecvKbps);
-					webEndpoint.setMinVideoRecvBandwidth(minRecvKbps);
-					webEndpoint.setMaxVideoSendBandwidth(maxSendKbps);
-					webEndpoint.setMinVideoSendBandwidth(minSendKbps);
+					if (openviduConfig.getCoturnIp() != null && !openviduConfig.getCoturnIp().isEmpty()
+							&& openviduConfig.isTurnadminAvailable()) {
+						webEndpoint.setStunServerAddress(openviduConfig.getCoturnIp());
+						webEndpoint.setStunServerPort(3478);
+					}
 
 					endpointLatch.countDown();
+
+					while (!candidates.isEmpty()) {
+						internalAddIceCandidate(candidates.removeFirst());
+					}
+
 					log.trace("EP {}: Created a new WebRtcEndpoint", endpointName);
 					endpointSubscription = registerElemErrListener(webEndpoint);
+
+					// This can be done after unlocking latch. Not necessary to wait
+					webEndpoint.setMaxVideoRecvBandwidth(maxRecvKbps, new Continuation<Void>() {
+						@Override
+						public void onSuccess(Void result) throws Exception {
+						}
+
+						@Override
+						public void onError(Throwable cause) throws Exception {
+							log.error("Error setting max video receive bandwidth for endpoint {}: {}", endpointName,
+									cause.getMessage());
+						}
+					});
+					webEndpoint.setMinVideoRecvBandwidth(minRecvKbps, new Continuation<Void>() {
+						@Override
+						public void onSuccess(Void result) throws Exception {
+						}
+
+						@Override
+						public void onError(Throwable cause) throws Exception {
+							log.error("Error setting min video receive bandwidth for endpoint {}: {}", endpointName,
+									cause.getMessage());
+						}
+					});
+					webEndpoint.setMaxVideoSendBandwidth(maxSendKbps, new Continuation<Void>() {
+						@Override
+						public void onSuccess(Void result) throws Exception {
+						}
+
+						@Override
+						public void onError(Throwable cause) throws Exception {
+							log.error("Error setting max video send bandwidth for endpoint {}: {}", endpointName,
+									cause.getMessage());
+						}
+					});
+					webEndpoint.setMinVideoSendBandwidth(minSendKbps, new Continuation<Void>() {
+						@Override
+						public void onSuccess(Void result) throws Exception {
+						}
+
+						@Override
+						public void onError(Throwable cause) throws Exception {
+							log.error("Error setting min video send bandwidth for endpoint {}: {}", endpointName,
+									cause.getMessage());
+						}
+					});
 				}
 
 				@Override
@@ -532,7 +590,13 @@ public abstract class MediaEndpoint {
 		json.addProperty("createdAt", this.createdAt);
 		json.addProperty("webrtcEndpointName", this.getEndpointName());
 		if (!this.isPlayerEndpoint()) {
-			json.addProperty("remoteSdp", ((SdpEndpoint) this.getEndpoint()).getRemoteSessionDescriptor());
+			try {
+				json.addProperty("remoteSdp", ((SdpEndpoint) this.getEndpoint()).getRemoteSessionDescriptor());
+			} catch (KurentoServerException e) {
+				log.error("Error retrieving remote SDP for endpoint {} of stream {}: {}", this.endpointName,
+						this.streamId, e.getMessage());
+				json.add("remoteSdp", JsonNull.INSTANCE);
+			}
 			json.addProperty("localSdp", ((SdpEndpoint) this.getEndpoint()).getLocalSessionDescriptor());
 		}
 		json.add("receivedCandidates", new GsonBuilder().create().toJsonTree(this.receivedCandidateList));

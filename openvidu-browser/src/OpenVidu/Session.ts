@@ -23,7 +23,7 @@ import { Stream } from './Stream';
 import { StreamManager } from './StreamManager';
 import { Subscriber } from './Subscriber';
 import { Capabilities } from '../OpenViduInternal/Interfaces/Public/Capabilities';
-import { EventDispatcher } from '../OpenViduInternal/Interfaces/Public/EventDispatcher';
+import { EventDispatcher } from './EventDispatcher';
 import { SignalOptions } from '../OpenViduInternal/Interfaces/Public/SignalOptions';
 import { SubscriberProperties } from '../OpenViduInternal/Interfaces/Public/SubscriberProperties';
 import { ConnectionOptions } from '../OpenViduInternal/Interfaces/Private/ConnectionOptions';
@@ -40,7 +40,6 @@ import { StreamPropertyChangedEvent } from '../OpenViduInternal/Events/StreamPro
 import { OpenViduError, OpenViduErrorName } from '../OpenViduInternal/Enums/OpenViduError';
 import { VideoInsertMode } from '../OpenViduInternal/Enums/VideoInsertMode';
 
-import EventEmitter = require('wolfy87-eventemitter');
 import platform = require('platform');
 
 /**
@@ -65,7 +64,7 @@ import platform = require('platform');
  * - reconnected
  * 
  */
-export class Session implements EventDispatcher {
+export class Session extends EventDispatcher {
 
     /**
      * Local connection to the Session. This object is defined only after [[Session.connect]] has been successfully executed, and can be retrieved subscribing to `connectionCreated` event
@@ -131,12 +130,11 @@ export class Session implements EventDispatcher {
      */
     stopSpeakingEventsEnabledOnce = false;
 
-    private ee = new EventEmitter();
-
     /**
      * @hidden
      */
     constructor(openvidu: OpenVidu) {
+        super();
         this.openvidu = openvidu;
     }
 
@@ -200,20 +198,20 @@ export class Session implements EventDispatcher {
      *
      * The [[Session]] object of the local participant will dispatch a `sessionDisconnected` event.
      * This event will automatically unsubscribe the leaving participant from every Subscriber object of the session (this includes closing the WebRTCPeer connection and disposing all MediaStreamTracks)
-     * and also deletes any HTML video element associated to each Subscriber (only those [created by OpenVidu Browser](/docs/how-do-i/manage-videos/#let-openvidu-take-care-of-the-video-players)).
+     * and also deletes any HTML video element associated to each Subscriber (only those [created by OpenVidu Browser](/en/stable/cheatsheet/manage-videos/#let-openvidu-take-care-of-the-video-players)).
      * For every video removed, each Subscriber object will dispatch a `videoElementDestroyed` event.
      * Call `event.preventDefault()` upon event `sessionDisconnected` to avoid this behavior and take care of disposing and cleaning all the Subscriber objects yourself.
      * See [[SessionDisconnectedEvent]] and [[VideoElementEvent]] to learn more to learn more.
      *
      * The [[Publisher]] object of the local participant will dispatch a `streamDestroyed` event if there is a [[Publisher]] object publishing to the session.
-     * This event will automatically stop all media tracks and delete any HTML video element associated to it (only those [created by OpenVidu Browser](/docs/how-do-i/manage-videos/#let-openvidu-take-care-of-the-video-players)).
+     * This event will automatically stop all media tracks and delete any HTML video element associated to it (only those [created by OpenVidu Browser](/en/stable/cheatsheet/manage-videos/#let-openvidu-take-care-of-the-video-players)).
      * For every video removed, the Publisher object will dispatch a `videoElementDestroyed` event.
      * Call `event.preventDefault()` upon event `streamDestroyed` if you want to clean the Publisher object on your own or re-publish it in a different Session (to do so it is a mandatory requirement to call `Session.unpublish()`
      * or/and `Session.disconnect()` in the previous session). See [[StreamEvent]] and [[VideoElementEvent]] to learn more.
      *
      * The [[Session]] object of every other participant connected to the session will dispatch a `streamDestroyed` event if the disconnected participant was publishing.
      * This event will automatically unsubscribe the Subscriber object from the session (this includes closing the WebRTCPeer connection and disposing all MediaStreamTracks)
-     * and also deletes any HTML video element associated to that Subscriber (only those [created by OpenVidu Browser](/docs/how-do-i/manage-videos/#let-openvidu-take-care-of-the-video-players)).
+     * and also deletes any HTML video element associated to that Subscriber (only those [created by OpenVidu Browser](/en/stable/cheatsheet/manage-videos/#let-openvidu-take-care-of-the-video-players)).
      * For every video removed, the Subscriber object will dispatch a `videoElementDestroyed` event.
      * Call `event.preventDefault()` upon event `streamDestroyed` to avoid this default behavior and take care of disposing and cleaning the Subscriber object yourself.
      * See [[StreamEvent]] and [[VideoElementEvent]] to learn more.
@@ -235,13 +233,13 @@ export class Session implements EventDispatcher {
      * #### Events dispatched
      *
      * The [[Subscriber]] object will dispatch a `videoElementCreated` event once the HTML video element has been added to DOM (only if you
-     * [let OpenVidu take care of the video players](/docs/how-do-i/manage-videos/#let-openvidu-take-care-of-the-video-players)). See [[VideoElementEvent]] to learn more.
+     * [let OpenVidu take care of the video players](/en/stable/cheatsheet/manage-videos/#let-openvidu-take-care-of-the-video-players)). See [[VideoElementEvent]] to learn more.
      *
      * The [[Subscriber]] object will dispatch a `streamPlaying` event once the remote stream starts playing. See [[StreamManagerEvent]] to learn more.
      *
      * @param stream Stream object to subscribe to
      * @param targetElement HTML DOM element (or its `id` attribute) in which the video element of the Subscriber will be inserted (see [[SubscriberProperties.insertMode]]). If *null* or *undefined* no default video will be created for this Subscriber.
-     * You can always call method [[Subscriber.addVideoElement]] or [[Subscriber.createVideoElement]] to manage the video elements on your own (see [Manage video players](/docs/how-do-i/manage-videos) section)
+     * You can always call method [[Subscriber.addVideoElement]] or [[Subscriber.createVideoElement]] to manage the video elements on your own (see [Manage video players](/en/stable/cheatsheet/manage-videos) section)
      * @param completionHandler `error` parameter is null if `subscribe` succeeds, and is defined if it fails.
      */
     subscribe(stream: Stream, targetElement: string | HTMLElement, param3?: ((error: Error | undefined) => void) | SubscriberProperties, param4?: ((error: Error | undefined) => void)): Subscriber {
@@ -324,7 +322,7 @@ export class Session implements EventDispatcher {
      * #### Events dispatched
      *
      * The [[Subscriber]] object will dispatch a `videoElementDestroyed` event for each video associated to it that was removed from DOM.
-     * Only videos [created by OpenVidu Browser](/docs/how-do-i/manage-videos/#let-openvidu-take-care-of-the-video-players)) will be automatically removed
+     * Only videos [created by OpenVidu Browser](/en/stable/cheatsheet/manage-videos/#let-openvidu-take-care-of-the-video-players)) will be automatically removed
      *
      * See [[VideoElementEvent]] to learn more
      */
@@ -406,13 +404,13 @@ export class Session implements EventDispatcher {
      *
      * The [[Publisher]] object of the local participant will dispatch a `streamDestroyed` event.
      * This event will automatically stop all media tracks and delete any HTML video element associated to this Publisher
-     * (only those videos [created by OpenVidu Browser](/docs/how-do-i/manage-videos/#let-openvidu-take-care-of-the-video-players)).
+     * (only those videos [created by OpenVidu Browser](/en/stable/cheatsheet/manage-videos/#let-openvidu-take-care-of-the-video-players)).
      * For every video removed, the Publisher object will dispatch a `videoElementDestroyed` event.
      * Call `event.preventDefault()` upon event `streamDestroyed` if you want to clean the Publisher object on your own or re-publish it in a different Session.
      *
      * The [[Session]] object of every other participant connected to the session will dispatch a `streamDestroyed` event.
      * This event will automatically unsubscribe the Subscriber object from the session (this includes closing the WebRTCPeer connection and disposing all MediaStreamTracks) and
-     * delete any HTML video element associated to it (only those [created by OpenVidu Browser](/docs/how-do-i/manage-videos/#let-openvidu-take-care-of-the-video-players)).
+     * delete any HTML video element associated to it (only those [created by OpenVidu Browser](/en/stable/cheatsheet/manage-videos/#let-openvidu-take-care-of-the-video-players)).
      * For every video removed, the Subscriber object will dispatch a `videoElementDestroyed` event.
      * Call `event.preventDefault()` upon event `streamDestroyed` to avoid this default behavior and take care of disposing and cleaning the Subscriber object on your own.
      *
@@ -589,14 +587,7 @@ export class Session implements EventDispatcher {
      */
     on(type: string, handler: (event: SessionDisconnectedEvent | SignalEvent | StreamEvent | ConnectionEvent | PublisherSpeakingEvent | RecordingEvent) => void): EventDispatcher {
 
-        this.ee.on(type, event => {
-            if (event) {
-                console.info("Event '" + type + "' triggered by 'Session'", event);
-            } else {
-                console.info("Event '" + type + "' triggered by 'Session'");
-            }
-            handler(event);
-        });
+        super.onAux(type, "Event '" + type + "' triggered by 'Session'", handler);
 
         if (type === 'publisherStartSpeaking') {
             this.startSpeakingEventsEnabled = true;
@@ -628,14 +619,7 @@ export class Session implements EventDispatcher {
      */
     once(type: string, handler: (event: SessionDisconnectedEvent | SignalEvent | StreamEvent | ConnectionEvent | PublisherSpeakingEvent | RecordingEvent) => void): Session {
 
-        this.ee.once(type, event => {
-            if (event) {
-                console.info("Event '" + type + "' triggered once by 'Session'", event);
-            } else {
-                console.info("Event '" + type + "' triggered once by 'Session'");
-            }
-            handler(event);
-        });
+        super.onceAux(type, "Event '" + type + "' triggered once by 'Session'", handler);
 
         if (type === 'publisherStartSpeaking') {
             this.startSpeakingEventsEnabledOnce = true;
@@ -666,11 +650,8 @@ export class Session implements EventDispatcher {
      * See [[EventDispatcher.off]]
      */
     off(type: string, handler?: (event: SessionDisconnectedEvent | SignalEvent | StreamEvent | ConnectionEvent | PublisherSpeakingEvent | RecordingEvent) => void): Session {
-        if (!handler) {
-            this.ee.removeAllListeners(type);
-        } else {
-            this.ee.off(type, handler);
-        }
+
+        super.off(type, handler);
 
         if (type === 'publisherStartSpeaking') {
             let remainingStartSpeakingListeners = this.ee.getListeners(type).length;
@@ -941,7 +922,6 @@ export class Session implements EventDispatcher {
             candidate: msg.candidate,
             component: msg.component,
             foundation: msg.foundation,
-            ip: msg.ip,
             port: msg.port,
             priority: msg.priority,
             protocol: msg.protocol,

@@ -257,11 +257,11 @@ public class RpcHandler extends DefaultJsonRpcHandler<JsonObject> {
 
 				// While closing a session users can't join
 				if (session.closingLock.readLock().tryLock()) {
-					if (session.isClosed()) {
-						throw new OpenViduException(Code.ROOM_CLOSED_ERROR_CODE,
-								"Unable to join the session. Session " + sessionId + " is closed");
-					}
 					try {
+						if (session.isClosed()) {
+							throw new OpenViduException(Code.ROOM_CLOSED_ERROR_CODE,
+									"Unable to join the session. Session " + sessionId + " is closed");
+						}
 						Participant participant;
 						if (generateRecorderParticipant) {
 							participant = sessionManager.newRecorderParticipant(sessionId, participantPrivatetId,
@@ -379,6 +379,10 @@ public class RpcHandler extends DefaultJsonRpcHandler<JsonObject> {
 		String candidate = getStringParam(request, ProtocolElements.ONICECANDIDATE_CANDIDATE_PARAM);
 		String sdpMid = getStringParam(request, ProtocolElements.ONICECANDIDATE_SDPMIDPARAM);
 		int sdpMLineIndex = getIntParam(request, ProtocolElements.ONICECANDIDATE_SDPMLINEINDEX_PARAM);
+
+		log.info(
+				"New candidate received from participant {}: {connectionId: \"{}\", sdpMid: {}, sdpMLineIndex: {}, candidate: \"{}\"}",
+				participant.getParticipantPublicId(), endpointName, sdpMid, sdpMLineIndex, candidate);
 
 		sessionManager.onIceCandidate(participant, endpointName, candidate, sdpMLineIndex, sdpMid, request.getId());
 	}

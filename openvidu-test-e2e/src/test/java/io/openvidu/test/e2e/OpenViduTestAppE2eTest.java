@@ -22,6 +22,7 @@ import static org.openqa.selenium.OutputType.BASE64;
 
 import java.awt.Color;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
@@ -2283,16 +2284,16 @@ public class OpenViduTestAppE2eTest {
 		Assert.assertFalse("Wrong recording hasAudio", recording2.hasAudio());
 		Assert.assertTrue("Wrong recording hasVideo", recording2.hasVideo());
 
-		Thread.sleep(5000);
+		Thread.sleep(7000);
 
 		recording2 = OV.stopRecording(recording2.getId());
 
 		user.getEventManager().waitUntilEventReaches("recordingStopped", 3);
 
-		Assert.assertTrue("Wrong recording duration", recording2.getDuration() > 0);
 		Assert.assertTrue("Wrong recording size", recording2.getSize() > 0);
 		Assert.assertNotNull("Wrong recording url", recording2.getUrl());
 		Assert.assertEquals("Wrong recording status", Recording.Status.ready, recording2.getStatus());
+		Assert.assertTrue("Wrong recording duration", recording2.getDuration() > 0);
 		Assert.assertFalse("Session shouldn't be being recorded", session.isBeingRecorded());
 		Assert.assertFalse("Session.fetch() should return false", session.fetch());
 
@@ -2635,9 +2636,11 @@ public class OpenViduTestAppE2eTest {
 
 		/** GET /config **/
 		restClient.rest(HttpMethod.GET, "/config", null, HttpStatus.SC_OK, true,
-				"{'version':'STR','openviduPublicurl':'STR','openviduCdr':false,'maxRecvBandwidth':0,'minRecvBandwidth':0,'maxSendBandwidth':0,'minSendBandwidth':0,'openviduRecording':false,"
-						+ "'openviduRecordingVersion':'STR','openviduRecordingPath':'STR','openviduRecordingPublicAccess':false,'openviduRecordingNotification':'STR',"
-						+ "'openviduRecordingCustomLayout':'STR','openviduRecordingAutostopTimeout':0,'openviduWebhook':false,'openviduWebhookEndpoint':'STR','openviduWebhookHeaders':[],'openviduWebhookEvents':[], 'kmsUris':[]}");
+				"{'VERSION':'STR','OPENVIDU_PUBLICURL':'STR','OPENVIDU_CDR':false,'OPENVIDU_STREAMS_VIDEO_MAX_RECV_BANDWIDTH':0,'OPENVIDU_STREAMS_VIDEO_MIN_RECV_BANDWIDTH':0,"
+						+ "'OPENVIDU_STREAMS_VIDEO_MAX_SEND_BANDWIDTH':0,'OPENVIDU_STREAMS_VIDEO_MIN_SEND_BANDWIDTH':0,'OPENVIDU_SESSIONS_GARBAGE_INTERVAL':0,'OPENVIDU_SESSIONS_GARBAGE_THRESHOLD':0,"
+						+ "'OPENVIDU_RECORDING':false,'OPENVIDU_RECORDING_VERSION':'STR','OPENVIDU_RECORDING_PATH':'STR','OPENVIDU_RECORDING_PUBLIC_ACCESS':false,'OPENVIDU_RECORDING_NOTIFICATION':'STR',"
+						+ "'OPENVIDU_RECORDING_CUSTOM_LAYOUT':'STR','OPENVIDU_RECORDING_AUTOSTOP_TIMEOUT':0,'OPENVIDU_WEBHOOK':false,'OPENVIDU_WEBHOOK_ENDPOINT':'STR','OPENVIDU_WEBHOOK_HEADERS':[],"
+						+ "'OPENVIDU_WEBHOOK_EVENTS':[], 'KMS_URIS':[]}");
 	}
 
 	@Test
@@ -2667,7 +2670,7 @@ public class OpenViduTestAppE2eTest {
 		user.getWaiter().until(ExpectedConditions.alertIsPresent());
 		Alert alert = user.getDriver().switchTo().alert();
 
-		final String alertMessage = "Exception connecting to WebSocket server ws://localhost:8888/kurento";
+		final String alertMessage = "Error connecting to the session: There is no available Media Node where to initialize session 'TestSession'. Code: 204";
 		Assert.assertTrue("Alert message wrong. Expected to contain: \"" + alertMessage + "\". Actual message: \""
 				+ alert.getText() + "\"", alert.getText().contains(alertMessage));
 		alert.accept();
@@ -3073,7 +3076,7 @@ public class OpenViduTestAppE2eTest {
 			CustomWebhook.waitForEvent("recordingStatusChanged", 1); // Ready
 
 			// Publish the MP4 file as an IPCAM
-			String recPath = restClient.rest(HttpMethod.GET, "/config", HttpStatus.SC_OK).get("openviduRecordingPath")
+			String recPath = restClient.rest(HttpMethod.GET, "/config", HttpStatus.SC_OK).get("OPENVIDU_RECORDING_PATH")
 					.getAsString();
 			recPath = recPath.endsWith("/") ? recPath : (recPath + "/");
 			String fullRecordingPath = "file://" + recPath + "TestSession/audioVideo.mp4";
@@ -3259,12 +3262,30 @@ public class OpenViduTestAppE2eTest {
 					recording.getResolution(), realResolution);
 
 			log.info("Recording map color: {}", colorMap.toString());
+			log.info("Recording frame below");
+			System.out.println(bufferedImageToBase64PngString(image));
 			isFine = this.checkVideoAverageRgbGreen(colorMap);
 		} catch (IOException | JCodecException e) {
 			log.warn("Error getting frame from video recording: {}", e.getMessage());
 			isFine = false;
 		}
 		return isFine;
+	}
+
+	private String bufferedImageToBase64PngString(BufferedImage image) {
+		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+		String imageString = null;
+		try {
+			ImageIO.write(image, "png", bos);
+			byte[] imageBytes = bos.toByteArray();
+			imageString = "data:image/png;base64," + Base64.getEncoder().encodeToString(imageBytes);
+			bos.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return imageString;
 	}
 
 	private void checkIndividualRecording(String recPath, Recording recording, int numberOfVideoFiles,

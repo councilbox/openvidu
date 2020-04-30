@@ -56,9 +56,9 @@ import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
 public class OpenVidu {
@@ -185,7 +185,7 @@ public class OpenVidu {
 	 *                                     or it is already being recorded</li>
 	 *                                     <li><code>501</code>: OpenVidu Server
 	 *                                     recording module is disabled
-	 *                                     (<i>openvidu.recording</i> property set
+	 *                                     (<i>OPENVIDU_RECORDING</i> property set
 	 *                                     to <i>false</i>)</li>
 	 *                                     </ul>
 	 */
@@ -282,7 +282,7 @@ public class OpenVidu {
 	 *                                     or it is already being recorded</li>
 	 *                                     <li><code>501</code>: OpenVidu Server
 	 *                                     recording module is disabled
-	 *                                     (<i>openvidu.recording</i> property set
+	 *                                     (<i>OPENVIDU_RECORDING</i> property set
 	 *                                     to <i>false</i>)</li>
 	 *                                     </ul>
 	 */
@@ -323,7 +323,7 @@ public class OpenVidu {
 	 *                                     or it is already being recorded</li>
 	 *                                     <li><code>501</code>: OpenVidu Server
 	 *                                     recording module is disabled
-	 *                                     (<i>openvidu.recording</i> property set
+	 *                                     (<i>OPENVIDU_RECORDING</i> property set
 	 *                                     to <i>false</i>)</li>
 	 *                                     </ul>
 	 */
@@ -590,7 +590,7 @@ public class OpenVidu {
 
 	private JsonObject httpResponseToJson(HttpResponse response) throws OpenViduJavaClientException {
 		try {
-			JsonObject json = JsonParser.parseString(EntityUtils.toString(response.getEntity())).getAsJsonObject();
+			JsonObject json = new Gson().fromJson(EntityUtils.toString(response.getEntity()), JsonObject.class);
 			return json;
 		} catch (JsonSyntaxException | ParseException | IOException e) {
 			throw new OpenViduJavaClientException(e.getMessage(), e.getCause());

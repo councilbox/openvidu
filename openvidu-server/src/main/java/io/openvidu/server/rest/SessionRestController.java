@@ -21,6 +21,7 @@ import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.RandomStringUtils;
@@ -234,15 +235,28 @@ public class SessionRestController {
 		Session sessionNotActive = this.sessionManager.getSessionNotActive(sessionId);
 		if (sessionNotActive != null) {
 			try {
-				sessionNotActive.closingLock.writeLock().lock();
-				if (sessionNotActive.isClosed()) {
-					return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+				if (sessionNotActive.closingLock.writeLock().tryLock(15, TimeUnit.SECONDS)) {
+					try {
+						if (sessionNotActive.isClosed()) {
+							return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+						}
+						this.sessionManager.closeSessionAndEmptyCollections(sessionNotActive,
+								EndReason.sessionClosedByServer, true);
+						return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+					} finally {
+						sessionNotActive.closingLock.writeLock().unlock();
+					}
+				} else {
+					String errorMsg = "Timeout waiting for Session " + sessionId
+							+ " closing lock to be available for closing from DELETE /api/sessions";
+					log.error(errorMsg);
+					return this.generateErrorResponse(errorMsg, "/api/sessions", HttpStatus.BAD_REQUEST);
 				}
-				this.sessionManager.closeSessionAndEmptyCollections(sessionNotActive, EndReason.sessionClosedByServer,
-						true);
-				return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-			} finally {
-				sessionNotActive.closingLock.writeLock().unlock();
+			} catch (InterruptedException e) {
+				String errorMsg = "InterruptedException while waiting for Session " + sessionId
+						+ " closing lock to be available for closing from DELETE /api/sessions";
+				log.error(errorMsg);
+				return this.generateErrorResponse(errorMsg, "/api/sessions", HttpStatus.BAD_REQUEST);
 			}
 		} else {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -430,7 +444,7 @@ public class SessionRestController {
 		log.info("REST API: POST /api/recordings/start {}", params.toString());
 
 		if (!this.openviduConfig.isRecordingModuleEnabled()) {
-			// OpenVidu Server configuration property "openvidu.recording" is set to false
+			// OpenVidu Server configuration property "OPENVIDU_RECORDING" is set to false
 			return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
 		}
 
@@ -500,7 +514,7 @@ public class SessionRestController {
 			if (session != null) {
 				if (!(MediaMode.ROUTED.equals(session.getSessionProperties().mediaMode()))
 						|| this.recordingManager.sessionIsBeingRecorded(session.getSessionId())) {
-					// Session is not in ROUTED MediMode or it is already being recorded
+					// Session is not in ROUTED MediaMode or it is already being recorded
 					return new ResponseEntity<>(HttpStatus.CONFLICT);
 				} else {
 					// Session is not active (no connected participants)

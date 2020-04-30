@@ -208,10 +208,10 @@ public abstract class MediaEndpoint {
 			internalEndpointInitialization(endpointLatch);
 		} else {
 			endpointLatch.countDown();
-		}
-		if (this.isWeb()) {
-			while (!candidates.isEmpty()) {
-				internalAddIceCandidate(candidates.removeFirst());
+			if (this.isWeb()) {
+				while (!candidates.isEmpty()) {
+					internalAddIceCandidate(candidates.removeFirst());
+				}
 			}
 		}
 		return old;
@@ -284,6 +284,11 @@ public abstract class MediaEndpoint {
 					webEndpoint.setMinVideoSendBandwidth(minSendKbps);
 
 					endpointLatch.countDown();
+
+					while (!candidates.isEmpty()) {
+						internalAddIceCandidate(candidates.removeFirst());
+					}
+
 					log.trace("EP {}: Created a new WebRtcEndpoint", endpointName);
 					endpointSubscription = registerElemErrListener(webEndpoint);
 				}

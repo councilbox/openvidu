@@ -66,7 +66,7 @@ public class RpcHandler extends DefaultJsonRpcHandler<JsonObject> {
 	GeoLocationByIp geoLocationByIp;
 
 	@Autowired
-	SessionManager sessionManager;
+	volatile SessionManager sessionManager;
 
 	@Autowired
 	RpcNotificationService notificationService;

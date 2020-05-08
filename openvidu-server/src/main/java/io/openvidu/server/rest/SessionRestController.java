@@ -78,7 +78,7 @@ public class SessionRestController {
 	private static final Logger log = LoggerFactory.getLogger(SessionRestController.class);
 
 	@Autowired
-	private SessionManager sessionManager;
+	volatile SessionManager sessionManager;
 
 	@Autowired
 	private RecordingManager recordingManager;

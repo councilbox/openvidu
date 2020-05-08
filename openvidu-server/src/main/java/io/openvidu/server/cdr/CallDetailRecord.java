@@ -96,7 +96,7 @@ public class CallDetailRecord {
 	private static final Logger log = LoggerFactory.getLogger(CallDetailRecord.class);
 
 	@Autowired
-	private SessionManager sessionManager;
+	volatile SessionManager sessionManager;
 
 	private Collection<CDRLogger> loggers;
 

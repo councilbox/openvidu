@@ -59,7 +59,7 @@ public class SessionGarbageCollectorIntegrationTest {
 	private KmsManager kmsManager;
 
 	@Autowired
-	private SessionManager sessionManager;
+	volatile SessionManager sessionManager;
 
 	@Autowired
 	private SessionRestController sessionRestController;

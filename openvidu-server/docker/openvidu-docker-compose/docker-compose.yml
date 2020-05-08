@@ -11,6 +11,8 @@
 #
 #    This file will be overridden when update OpenVidu Platform
 #
+#    Openvidu Version: 2.13.0
+#
 # ------------------------------------------------------------------------------
 
 version: '3.1'
@@ -67,7 +69,7 @@ services:
             - MAX_PORT=65535
 
     nginx:
-        image: openvidu/openvidu-proxy:2.0.0-beta1
+        image: openvidu/openvidu-proxy:2.0.0-beta3
         restart: on-failure
         network_mode: host
         volumes:
@@ -75,7 +77,7 @@ services:
             - ./owncert:/owncert
             - ${OPENVIDU_RECORDING_CUSTOM_LAYOUT}:/opt/openvidu/custom-layout
         environment:
-            - DOMAIN_OR_PUBLIC_IP=${OPENVIDU_DOMAIN_OR_PUBLIC_IP}
+            - DOMAIN_OR_PUBLIC_IP=${DOMAIN_OR_PUBLIC_IP}
             - CERTIFICATE_TYPE=${CERTIFICATE_TYPE}
             - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
             - PROXY_HTTP_PORT=${HTTP_PORT:-}
@@ -83,4 +85,4 @@ services:
             - ALLOWED_ACCESS_TO_DASHBOARD=${ALLOWED_ACCESS_TO_DASHBOARD:-}
             - ALLOWED_ACCESS_TO_RESTAPI=${ALLOWED_ACCESS_TO_RESTAPI:-}
             - PROXY_MODE=CE
-            - WITH_DEMOS=true
+            - WITH_APP=true

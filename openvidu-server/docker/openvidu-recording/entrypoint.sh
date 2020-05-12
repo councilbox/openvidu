@@ -62,7 +62,7 @@ pulseaudio -D
 
 touch xvfb.log
 chmod 777 xvfb.log
-xvfb-run --server-num=${DISPLAY_NUM} --server-args="-ac -screen 0 ${RESOLUTION}x24 -noreset" google-chrome --start-maximized --no-sandbox --test-type --disable-infobars --window-size=$WIDTH,$HEIGHT --window-position=0,0 --no-first-run --ignore-certificate-errors --autoplay-policy=no-user-gesture-required --kiosk $URL &> xvfb.log &
+xvfb-run --server-num=${DISPLAY_NUM} --server-args="-ac -screen 0 ${RESOLUTION}x24 -noreset" google-chrome --start-maximized --no-sandbox --test-type --disable-dev-shm-usage --disable-infobars --window-size=$WIDTH,$HEIGHT --window-position=0,0 --no-first-run --ignore-certificate-errors --autoplay-policy=no-user-gesture-required --kiosk $URL &> xvfb.log &
 touch stop
 sleep 2
 

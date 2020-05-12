@@ -39,7 +39,7 @@ public class KurentoParticipantEndpointConfig {
 	protected InfoHandler infoHandler;
 
 	@Autowired
-	protected CallDetailRecord CDR;
+	protected volatile CallDetailRecord CDR;
 
 	public void addEndpointListeners(MediaEndpoint endpoint, String typeOfEndpoint) {
 

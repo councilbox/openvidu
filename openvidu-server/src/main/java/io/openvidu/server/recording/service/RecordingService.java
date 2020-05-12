@@ -43,7 +43,7 @@ public abstract class RecordingService {
 	protected OpenviduConfig openviduConfig;
 	protected RecordingManager recordingManager;
 	protected RecordingDownloader recordingDownloader;
-	protected CallDetailRecord cdr;
+	protected volatile CallDetailRecord cdr;
 	protected QuarantineKiller quarantineKiller;
 	protected CustomFileManager fileWriter = new CustomFileManager();
 

@@ -66,25 +66,25 @@ public abstract class SessionManager {
 	private static final Logger log = LoggerFactory.getLogger(SessionManager.class);
 
 	@Autowired
-	protected SessionEventsHandler sessionEventsHandler;
+	protected volatile SessionEventsHandler sessionEventsHandler;
 
 	@Autowired
-	protected RecordingManager recordingManager;
+	protected volatile RecordingManager recordingManager;
 
 	@Autowired
-	protected OpenviduConfig openviduConfig;
+	protected volatile OpenviduConfig openviduConfig;
 
 	@Autowired
-	protected CoturnCredentialsService coturnCredentialsService;
+	protected volatile CoturnCredentialsService coturnCredentialsService;
 
 	@Autowired
-	protected TokenGenerator tokenGenerator;
+	protected volatile TokenGenerator tokenGenerator;
 
 	@Autowired
-	protected QuarantineKiller quarantineKiller;
+	protected volatile QuarantineKiller quarantineKiller;
 
 	@Autowired
-	protected GeoLocationByIp geoLocationByIp;
+	protected volatile GeoLocationByIp geoLocationByIp;
 
 	public FormatChecker formatChecker = new FormatChecker();
 

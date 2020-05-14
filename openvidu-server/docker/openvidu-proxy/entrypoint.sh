@@ -14,7 +14,13 @@ if [ -z "${CERTIFICATE_TYPE}" ]; then
 fi
 
 if [[ "${CERTIFICATE_TYPE}" == "letsencrypt" && \
-      "${LETSENCRYPT_EMAIL}" == "user@example.com" || \
+      "${LETSENCRYPT_EMAIL}" == "user@example.com" ]]; then
+  printf "\n  =======¡ERROR!======="
+  printf "\n  If your use LetsEncrypt mode it's necessary a correct email in 'LETSENCRYPT_EMAIL' variable\n"
+  exit 0
+fi
+
+if [[ "${CERTIFICATE_TYPE}" == "letsencrypt" && \
       -z "${LETSENCRYPT_EMAIL}" ]]; then
   printf "\n  =======¡ERROR!======="
   printf "\n  If your use LetsEncrypt mode it's necessary a correct email in 'LETSENCRYPT_EMAIL' variable\n"
@@ -29,10 +35,13 @@ CERTIFICATES_CONF="${CERTIFICATES_FOLDER}/certificates.conf"
 [ ! -f "${CERTIFICATES_CONF}" ] && touch "${CERTIFICATES_CONF}"
 [ -z "${PROXY_HTTP_PORT}" ] && export PROXY_HTTP_PORT=80
 [ -z "${PROXY_HTTPS_PORT}" ] && export PROXY_HTTPS_PORT=443
+[ -z "${WITH_APP}" ] && export WITH_APP=true
+[ -z "${PROXY_MODE}" ] && export PROXY_MODE=CE
 [ -z "${ALLOWED_ACCESS_TO_DASHBOARD}" ] && export ALLOWED_ACCESS_TO_DASHBOARD=all
 [ -z "${ALLOWED_ACCESS_TO_RESTAPI}" ] && export ALLOWED_ACCESS_TO_RESTAPI=all
 
 # Start with default certbot conf
+sed -i "s/{http_port}/${PROXY_HTTP_PORT}/" /etc/nginx/conf.d/default.conf
 nginx -g "daemon on;"
 
 # Show input enviroment variables
@@ -51,8 +60,8 @@ printf "\n  Config Openvidu Application:"
 printf "\n    - Domain name: %s" "${DOMAIN_OR_PUBLIC_IP}"
 printf "\n    - Certificated: %s" "${CERTIFICATE_TYPE}"
 printf "\n    - Letsencrypt Email: %s" "${LETSENCRYPT_EMAIL}"
-printf "\n    - Openvidu Application: %s" "${WITH_APP:-true}"
-printf "\n    - Openvidu Application Type: %s" "${PROXY_MODE:-CE}"
+printf "\n    - Openvidu Application: %s" "${WITH_APP}"
+printf "\n    - Openvidu Application Type: %s" "${PROXY_MODE}"
 
 printf "\n"
 printf "\n  ======================================="
@@ -298,10 +307,10 @@ if [ "${RULES_RESTAPI}" != "allow all;" ]; then
     RULES_RESTAPI="${RULES_RESTAPI}{new_line}allow $PUBLIC_IP;"
   fi
 
-  if ! echo "${RULES_DASHBOARD}" | grep -q "127.0.0.1"; then
-    RULES_DASHBOARD="${RULES_DASHBOARD}{new_line}allow 127.0.0.1;"
+  if ! echo "${RULES_RESTAPI}" | grep -q "127.0.0.1"; then
+    RULES_RESTAPI="${RULES_RESTAPI}{new_line}allow 127.0.0.1;"
   fi
-  
+
   IFS=$'\n'
   for IP in ${LOCAL_NETWORKS}
   do

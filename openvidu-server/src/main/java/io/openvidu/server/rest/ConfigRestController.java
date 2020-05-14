@@ -49,10 +49,10 @@ public class ConfigRestController {
 	private static final Logger log = LoggerFactory.getLogger(ConfigRestController.class);
 
 	@Autowired
-	private OpenviduConfig openviduConfig;
+	private volatile OpenviduConfig openviduConfig;
 
 	@Autowired
-	private OpenviduBuildInfo openviduBuildInfo;
+	private volatile OpenviduBuildInfo openviduBuildInfo;
 
 	@RequestMapping(value = "/openvidu-version", method = RequestMethod.GET)
 	public String getOpenViduServerVersion() {

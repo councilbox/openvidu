@@ -62,7 +62,7 @@ public class SessionGarbageCollectorIntegrationTest {
 	volatile SessionManager sessionManager;
 
 	@Autowired
-	private SessionRestController sessionRestController;
+	private volatile SessionRestController sessionRestController;
 
 	@Test
 	@DisplayName("Sessions not active garbage collector")

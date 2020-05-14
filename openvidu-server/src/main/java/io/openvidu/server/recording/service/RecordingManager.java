@@ -84,22 +84,22 @@ public class RecordingManager {
 	private DockerManager dockerManager;
 
 	@Autowired
-	protected SessionEventsHandler sessionHandler;
+	protected volatile SessionEventsHandler sessionHandler;
 
 	@Autowired
 	volatile SessionManager sessionManager;
 
 	@Autowired
-	private RecordingDownloader recordingDownloader;
+	private volatile RecordingDownloader recordingDownloader;
 
 	@Autowired
-	protected OpenviduConfig openviduConfig;
+	protected volatile OpenviduConfig openviduConfig;
 
 	@Autowired
-	private KmsManager kmsManager;
+	private volatile KmsManager kmsManager;
 
 	@Autowired
-	protected QuarantineKiller quarantineKiller;
+	protected volatile QuarantineKiller quarantineKiller;
 
 	@Autowired
 	volatile CallDetailRecord cdr;

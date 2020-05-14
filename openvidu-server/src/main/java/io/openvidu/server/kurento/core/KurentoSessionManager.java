@@ -74,13 +74,13 @@ public class KurentoSessionManager extends SessionManager {
 	private static final Logger log = LoggerFactory.getLogger(KurentoSessionManager.class);
 
 	@Autowired
-	private KmsManager kmsManager;
+	private volatile KmsManager kmsManager;
 
 	@Autowired
-	private KurentoSessionEventsHandler kurentoSessionEventsHandler;
+	private volatile KurentoSessionEventsHandler kurentoSessionEventsHandler;
 
 	@Autowired
-	private KurentoParticipantEndpointConfig kurentoEndpointConfig;
+	private volatile KurentoParticipantEndpointConfig kurentoEndpointConfig;
 
 	private final int MS_MAX_LOCK_WAIT = 15;
 

@@ -91,13 +91,13 @@ public abstract class KmsManager {
 	}
 
 	@Autowired
-	protected OpenviduConfig openviduConfig;
+	protected volatile OpenviduConfig openviduConfig;
 
 	@Autowired
-	protected LoadManager loadManager;
+	protected volatile LoadManager loadManager;
 
 	@Autowired
-	protected MediaNodeStatusManager mediaNodeStatusManager;
+	protected volatile MediaNodeStatusManager mediaNodeStatusManager;
 
 	final protected Map<String, Kms> kmss = new ConcurrentHashMap<>();
 
@@ -121,16 +121,16 @@ public abstract class KmsManager {
 		return kmsLoads;
 	}
 
-	public Kms getKms(String kmsId) {
+	public synchronized Kms getKms(String kmsId) {
 		return this.kmss.get(kmsId);
 	}
 
-	public KmsLoad getKmsLoad(String kmsId) {
+	public synchronized KmsLoad getKmsLoad(String kmsId) {
 		Kms kms = this.kmss.get(kmsId);
 		return new KmsLoad(kms, kms.getLoad());
 	}
 
-	public Collection<Kms> getKmss() {
+	public synchronized Collection<Kms> getKmss() {
 		return this.kmss.values();
 	}
 
@@ -155,6 +155,12 @@ public abstract class KmsManager {
 			public void reconnected(boolean sameServer) {
 
 				final Kms kms = kmss.get(kmsId);
+				
+				log.info("KMS MANAGER RECONNECTED");
+				log.info("KMS ID {}", kmsId);
+				log.info("KMS uri {}", kms.getUri());
+				log.info("KMS Kurento Client ==> {}", kms.getKurentoClient().toString());
+				log.info("KMS Kurento Client is closed ==> {}", kms.getKurentoClient().isClosed());
 
 				log.info("Kurento Client \"reconnected\" event for KMS {} (sameServer: {}) [{}]", kms.getUri(),
 						sameServer, kms.getKurentoClient().toString());
@@ -202,6 +208,12 @@ public abstract class KmsManager {
 			@Override
 			public void disconnected() {
 				final Kms kms = kmss.get(kmsId);
+				
+				log.info("KMS MANAGER DISCONNECTED");
+				log.info("KMS ID {}", kmsId);
+				log.info("KMS uri {}", kms.getUri());
+				log.info("KMS Kurento Client ==> {}", kms.getKurentoClient().toString());
+				log.info("KMS Kurento Client is closed ==> {}", kms.getKurentoClient().isClosed());
 
 				kms.setKurentoClientConnected(false);
 				kms.setTimeOfKurentoClientDisconnection(System.currentTimeMillis());
@@ -222,8 +234,17 @@ public abstract class KmsManager {
 					@Override
 					public void run() {
 						boolean lockAcquired = false;
-						try {
+						try {							
 							if (kmsReconnectionLocks.get(kms.getId()).tryLock(5, TimeUnit.SECONDS)) {
+								
+								log.info("KMS MANAGER TIMER");
+								log.info("KMS reconnection locks {}", kmsReconnectionLocks.get(kms.getId()));
+								log.info("KMS ID {}", kmsId);
+								log.info("KMS get ID {}", kms.getId());
+								log.info("KMS uri {}", kms.getUri());
+								log.info("KMS Kurento Client ==> {}", kms.getKurentoClient().toString());
+								log.info("KMS Kurento Client is closed ==> {}", kms.getKurentoClient().isClosed());
+								
 								lockAcquired = true;
 
 								if (kms.isKurentoClientConnected()) {
@@ -273,6 +294,13 @@ public abstract class KmsManager {
 			@Override
 			public void connectionFailed() {
 				final Kms kms = kmss.get(kmsId);
+				
+				log.info("KMS MANAGER CONNECTION FAILED");
+				log.info("KMS ID {}", kmsId);
+				log.info("KMS uri {}", kms.getUri());
+				log.info("KMS Kurento Client ==> {}", kms.getKurentoClient().toString());
+				log.info("KMS Kurento Client is closed ==> {}", kms.getKurentoClient().isClosed());
+				
 				log.error("Kurento Client \"connectionFailed\" event for KMS {} [{}]", kms.getUri(),
 						kms.getKurentoClient().toString());
 				kms.setKurentoClientConnected(false);
@@ -281,6 +309,13 @@ public abstract class KmsManager {
 			@Override
 			public void connected() {
 				final Kms kms = kmss.get(kmsId);
+				
+				log.info("KMS MANAGER CONNECTED");
+				log.info("KMS ID {}", kmsId);
+				log.info("KMS uri {}", kms.getUri());
+				log.info("KMS Kurento Client ==> {}", kms.getKurentoClient().toString());
+				log.info("KMS Kurento Client is closed ==> {}", kms.getKurentoClient().isClosed());
+				
 				log.info("Kurento Client \"connected\" event for KMS {} [{}]", kms.getUri(),
 						kms.getKurentoClient().toString());
 				// TODO: This should be done here, not after KurentoClient#create method returns

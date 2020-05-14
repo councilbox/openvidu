@@ -31,13 +31,13 @@ import io.openvidu.server.kurento.core.KurentoTokenOptions;
 public class TokenGeneratorDefault implements TokenGenerator {
 
 	@Autowired
-	private CoturnCredentialsService coturnCredentialsService;
+	private volatile CoturnCredentialsService coturnCredentialsService;
 
 	@Autowired
-	protected OpenviduConfig openviduConfig;
+	protected volatile OpenviduConfig openviduConfig;
 	
 	@Autowired
-	protected OpenviduBuildInfo openviduBuildConfig;
+	protected volatile OpenviduBuildInfo openviduBuildConfig;
 
 	@Override
 	public Token generateToken(String sessionId, OpenViduRole role, String serverMetadata,

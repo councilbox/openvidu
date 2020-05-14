@@ -81,10 +81,10 @@ public class SessionRestController {
 	volatile SessionManager sessionManager;
 
 	@Autowired
-	private RecordingManager recordingManager;
+	private volatile RecordingManager recordingManager;
 
 	@Autowired
-	private OpenviduConfig openviduConfig;
+	private volatile OpenviduConfig openviduConfig;
 
 	@RequestMapping(value = "/sessions", method = RequestMethod.POST)
 	public ResponseEntity<?> getSessionId(@RequestBody(required = false) Map<?, ?> params) {

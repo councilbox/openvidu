@@ -28,7 +28,7 @@ import io.openvidu.server.config.OpenviduConfig;
 public class CDRHttpHandler implements WebMvcConfigurer {
 
 	@Autowired
-	OpenviduConfig openviduConfig;
+	volatile OpenviduConfig openviduConfig;
 
 	@Override
 	public void addResourceHandlers(ResourceHandlerRegistry registry) {

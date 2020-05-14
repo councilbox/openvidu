@@ -30,7 +30,7 @@ public abstract class CoturnCredentialsService {
 	protected static final Logger log = LoggerFactory.getLogger(CoturnCredentialsService.class);
 
 	@Autowired
-	protected OpenviduConfig openviduConfig;
+	protected volatile OpenviduConfig openviduConfig;
 
 	protected String coturnDatabaseString;
 	protected String trimmedCoturnDatabaseString;

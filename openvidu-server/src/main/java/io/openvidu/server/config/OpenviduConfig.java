@@ -104,7 +104,7 @@ public class OpenviduConfig {
 	private Map<String, ?> propertiesSource;
 
 	@Autowired
-	protected Environment env;
+	protected volatile Environment env;
 
 	@Value("#{'${spring.profiles.active:}'.length() > 0 ? '${spring.profiles.active:}'.split(',') : \"default\"}")
 	protected String springProfile;
@@ -564,9 +564,9 @@ public class OpenviduConfig {
 		if (domain != null && !domain.isEmpty()) {
 			this.domainOrPublicIp = domain;
 			this.openviduPublicUrl = "https://" + domain;
-			if (this.httpsPort != null && this.httpsPort != 443) {
+			/*if (this.httpsPort != null && this.httpsPort != 443) {
 				this.openviduPublicUrl += (":" + this.httpsPort);
-			}
+			}*/
 			calculatePublicUrl();
 		} else {
 			addError(property, "Cannot be empty");

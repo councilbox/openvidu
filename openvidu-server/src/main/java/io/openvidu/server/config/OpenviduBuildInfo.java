@@ -25,7 +25,7 @@ import org.springframework.stereotype.Component;
 public class OpenviduBuildInfo {
 
 	@Autowired
-	private BuildProperties buildProperties;
+	private volatile BuildProperties buildProperties;
 
 	public String getOpenViduServerVersion() {
 		String v = this.buildProperties.get("version.openvidu.server");

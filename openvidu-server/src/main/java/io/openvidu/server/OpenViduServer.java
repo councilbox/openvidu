@@ -90,7 +90,7 @@ public class OpenViduServer implements JsonRpcConfigurer {
 	public static String httpUrl;
 
 	@Autowired
-	OpenviduConfig config;
+	volatile OpenviduConfig config;
 
 	@Bean
 	@ConditionalOnMissingBean

@@ -53,7 +53,7 @@ public class CDRRestController {
 	private static final Logger log = LoggerFactory.getLogger(CDRRestController.class);
 
 	@Autowired
-	protected OpenviduConfig openviduConfig;
+	protected volatile OpenviduConfig openviduConfig;
 
 	@RequestMapping(method = RequestMethod.GET)
 	public ResponseEntity<String> listCdrFiles() {

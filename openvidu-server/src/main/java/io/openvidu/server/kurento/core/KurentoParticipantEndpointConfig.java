@@ -36,7 +36,7 @@ public class KurentoParticipantEndpointConfig {
 	protected static final Logger log = LoggerFactory.getLogger(KurentoParticipantEndpointConfig.class);
 
 	@Autowired
-	protected InfoHandler infoHandler;
+	protected volatile InfoHandler infoHandler;
 
 	@Autowired
 	protected volatile CallDetailRecord CDR;

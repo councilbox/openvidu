@@ -38,7 +38,7 @@ import io.openvidu.server.config.OpenviduConfig;
 public class FrontendResourceHandler extends WebMvcConfigurerAdapter {
 
 	@Autowired
-	OpenviduConfig openviduConfig;
+	volatile OpenviduConfig openviduConfig;
 
 	@Override
 	public void addViewControllers(ViewControllerRegistry registry) {

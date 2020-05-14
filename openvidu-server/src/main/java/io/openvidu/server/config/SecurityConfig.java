@@ -35,7 +35,7 @@ import org.springframework.web.filter.CorsFilter;
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
 	@Autowired
-	OpenviduConfig openviduConf;
+	volatile OpenviduConfig openviduConf;
 
 	@Override
 	protected void configure(HttpSecurity http) throws Exception {

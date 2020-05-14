@@ -54,13 +54,13 @@ public class SessionEventsHandler {
 	protected volatile RpcNotificationService rpcNotificationService;
 
 	@Autowired
-	protected InfoHandler infoHandler;
+	protected volatile InfoHandler infoHandler;
 
 	@Autowired
 	protected volatile CallDetailRecord CDR;
 
 	@Autowired
-	protected OpenviduConfig openviduConfig;
+	protected volatile OpenviduConfig openviduConfig;
 
 	Map<String, Recording> recordingsStarted = new ConcurrentHashMap<>();
 

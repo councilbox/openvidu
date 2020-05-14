@@ -60,16 +60,16 @@ public class RpcHandler extends DefaultJsonRpcHandler<JsonObject> {
 	private static final Logger log = LoggerFactory.getLogger(RpcHandler.class);
 
 	@Autowired
-	OpenviduConfig openviduConfig;
+	volatile OpenviduConfig openviduConfig;
 
 	@Autowired
-	GeoLocationByIp geoLocationByIp;
+	volatile GeoLocationByIp geoLocationByIp;
 
 	@Autowired
 	volatile SessionManager sessionManager;
 
 	@Autowired
-	RpcNotificationService notificationService;
+	volatile RpcNotificationService notificationService;
 
 	private ConcurrentMap<String, Boolean> webSocketEOFTransportError = new ConcurrentHashMap<>();
 

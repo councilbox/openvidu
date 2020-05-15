@@ -125,7 +125,7 @@ public class OpenViduServer implements JsonRpcConfigurer {
 	@Bean
 	@ConditionalOnMissingBean
 	@DependsOn("openviduConfig")
-	public SessionManager sessionManager() {
+	public synchronized SessionManager sessionManager() {
 		return new KurentoSessionManager();
 	}
 

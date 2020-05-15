@@ -92,7 +92,7 @@ import io.openvidu.server.webhook.CDRLoggerWebhook;
 public class CallDetailRecord {
 
 	@Autowired
-	private SessionManager sessionManager;
+	volatile SessionManager sessionManager;
 
 	private Collection<CDRLogger> loggers;
 

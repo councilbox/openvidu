@@ -66,7 +66,7 @@ public class RpcHandler extends DefaultJsonRpcHandler<JsonObject> {
 	GeoLocationByIp geoLocationByIp;
 
 	@Autowired
-	SessionManager sessionManager;
+	volatile SessionManager sessionManager;
 
 	@Autowired
 	RpcNotificationService notificationService;
@@ -171,7 +171,7 @@ public class RpcHandler extends DefaultJsonRpcHandler<JsonObject> {
 		}
 	}
 
-	private void joinRoom(RpcConnection rpcConnection, Request<JsonObject> request) {
+	private synchronized void joinRoom(RpcConnection rpcConnection, Request<JsonObject> request) {
 
 		String sessionId = getStringParam(request, ProtocolElements.JOINROOM_ROOM_PARAM);
 		String token = getStringParam(request, ProtocolElements.JOINROOM_TOKEN_PARAM);
@@ -297,7 +297,7 @@ public class RpcHandler extends DefaultJsonRpcHandler<JsonObject> {
 		}
 	}
 
-	private void leaveRoom(RpcConnection rpcConnection, Request<JsonObject> request) {
+	private synchronized void leaveRoom(RpcConnection rpcConnection, Request<JsonObject> request) {
 		Participant participant;
 		try {
 			participant = sanityCheckOfSession(rpcConnection, "disconnect");

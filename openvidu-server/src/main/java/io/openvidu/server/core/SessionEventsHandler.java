@@ -51,13 +51,13 @@ public class SessionEventsHandler {
 	private static final Logger log = LoggerFactory.getLogger(SessionEventsHandler.class);
 
 	@Autowired
-	protected RpcNotificationService rpcNotificationService;
+	protected volatile RpcNotificationService rpcNotificationService;
 
 	@Autowired
 	protected InfoHandler infoHandler;
 
 	@Autowired
-	protected CallDetailRecord CDR;
+	protected volatile CallDetailRecord CDR;
 
 	@Autowired
 	protected OpenviduConfig openviduConfig;

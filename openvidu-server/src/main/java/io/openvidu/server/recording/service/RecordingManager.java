@@ -87,7 +87,7 @@ public class RecordingManager {
 	protected SessionEventsHandler sessionHandler;
 
 	@Autowired
-	private SessionManager sessionManager;
+	volatile SessionManager sessionManager;
 
 	@Autowired
 	private RecordingDownloader recordingDownloader;
@@ -102,7 +102,7 @@ public class RecordingManager {
 	protected QuarantineKiller quarantineKiller;
 
 	@Autowired
-	private CallDetailRecord cdr;
+	volatile CallDetailRecord cdr;
 
 	protected Map<String, Recording> startingRecordings = new ConcurrentHashMap<>();
 	protected Map<String, Recording> startedRecordings = new ConcurrentHashMap<>();

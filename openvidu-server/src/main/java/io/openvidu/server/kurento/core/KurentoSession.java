@@ -72,7 +72,7 @@ public class KurentoSession extends Session {
 	}
 
 	@Override
-	public void join(Participant participant) {
+	public synchronized void join(Participant participant) {
 		checkClosed();
 		createPipeline();
 
@@ -117,7 +117,7 @@ public class KurentoSession extends Session {
 	}
 
 	@Override
-	public void leave(String participantPrivateId, EndReason reason) throws OpenViduException {
+	public synchronized void leave(String participantPrivateId, EndReason reason) throws OpenViduException {
 
 		checkClosed();
 

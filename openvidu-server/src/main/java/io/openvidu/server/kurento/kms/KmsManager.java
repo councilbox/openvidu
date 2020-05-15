@@ -159,6 +159,7 @@ public abstract class KmsManager {
 				log.info("KMS MANAGER RECONNECTED");
 				log.info("KMS ID {}", kmsId);
 				log.info("KMS uri {}", kms.getUri());
+                log.info("KMS Is Kurento Client Connected {}", kms.isKurentoClientConnected());
 				log.info("KMS Kurento Client ==> {}", kms.getKurentoClient().toString());
 				log.info("KMS Kurento Client is closed ==> {}", kms.getKurentoClient().isClosed());
 
@@ -209,86 +210,108 @@ public abstract class KmsManager {
 			public void disconnected() {
 				final Kms kms = kmss.get(kmsId);
 				
-				log.info("KMS MANAGER DISCONNECTED");
-				log.info("KMS ID {}", kmsId);
-				log.info("KMS uri {}", kms.getUri());
-				log.info("KMS Kurento Client ==> {}", kms.getKurentoClient().toString());
-				log.info("KMS Kurento Client is closed ==> {}", kms.getKurentoClient().isClosed());
+                // log.info("KMS MANAGER DISCONNECTED OUTSIDE IF");
 
-				kms.setKurentoClientConnected(false);
-				kms.setTimeOfKurentoClientDisconnection(System.currentTimeMillis());
+                // if (!kms.isKurentoClientConnected()) {
+                    log.info("KMS MANAGER DISCONNECTED INSIDE IF");
+                    log.info("KMS ID {}", kmsId);
+                    log.info("KMS uri {}", kms.getUri());
+                    log.info("KMS Is Kurento Client Connected {}", kms.isKurentoClientConnected());
+                    log.info("KMS Kurento Client ==> {}", kms.getKurentoClient().toString());
+                    log.info("KMS Kurento Client is closed ==> {}", kms.getKurentoClient().isClosed());
 
-				if (kms.getKurentoClient().isClosed()) {
-					log.info("Kurento Client \"disconnected\" event for KMS {} [{}]. Closed explicitely", kms.getUri(),
-							kms.getKurentoClient().toString());
-					return;
-				} else {
-					log.info("Kurento Client \"disconnected\" event for KMS {} [{}]. Waiting reconnection",
-							kms.getUri(), kms.getKurentoClient().toString());
-				}
+                    kms.setKurentoClientConnected(false);
+                    kms.setTimeOfKurentoClientDisconnection(System.currentTimeMillis());
 
-				// TODO: this is a fix for the lack of reconnected event
-				kmsReconnectionLocks.putIfAbsent(kms.getId(), new ReentrantLock());
-				Timer timer = new Timer();
-				timer.schedule(new TimerTask() {
-					@Override
-					public void run() {
-						boolean lockAcquired = false;
-						try {							
-							if (kmsReconnectionLocks.get(kms.getId()).tryLock(5, TimeUnit.SECONDS)) {
-								
-								log.info("KMS MANAGER TIMER");
-								log.info("KMS reconnection locks {}", kmsReconnectionLocks.get(kms.getId()));
-								log.info("KMS ID {}", kmsId);
-								log.info("KMS get ID {}", kms.getId());
-								log.info("KMS uri {}", kms.getUri());
-								log.info("KMS Kurento Client ==> {}", kms.getKurentoClient().toString());
-								log.info("KMS Kurento Client is closed ==> {}", kms.getKurentoClient().isClosed());
-								
-								lockAcquired = true;
+                    if (kms.getKurentoClient().isClosed()) {
+                        log.info("Kurento Client \"disconnected\" event for KMS {} [{}]. Closed explicitely", kms.getUri(),
+                                kms.getKurentoClient().toString());
+                        return;
+                    } else {
+                        log.info("Kurento Client \"disconnected\" event for KMS {} [{}]. Waiting reconnection",
+                                kms.getUri(), kms.getKurentoClient().toString());
+                    }
 
-								if (kms.isKurentoClientConnected()) {
-									// reconnected listener already executed
-									log.info(
-											"Timer of KMS with uri {} and KurentoClient [{}] cancelled (reconnected event received during interval wait)",
-											kms.getUri(), kms.getKurentoClient().toString());
-									timer.cancel();
-									return;
-								}
+                    // TODO: this is a fix for the lack of reconnected event
+                    kmsReconnectionLocks.putIfAbsent(kms.getId(), new ReentrantLock());
+                    Timer timer = new Timer();
+                    timer.schedule(new TimerTask() {
+                        @Override
+                        public void run() {
+                            boolean lockAcquired = false;
+                            try {							
+                                if (kmsReconnectionLocks.get(kms.getId()).tryLock(5, TimeUnit.SECONDS)) {
+                                    
+                                    log.info("KMS MANAGER TIMER");
+                                    log.info("KMS reconnection locks {}", kmsReconnectionLocks.get(kms.getId()));
+                                    log.info("KMS ID {}", kmsId);
+                                    log.info("KMS get ID {}", kms.getId());
+                                    log.info("KMS uri {}", kms.getUri());
+                                    log.info("KMS Is Kurento Client Connected {}", kms.isKurentoClientConnected());
+                                    log.info("KMS Kurento Client ==> {}", kms.getKurentoClient().toString());
+                                    log.info("KMS Kurento Client is closed ==> {}", kms.getKurentoClient().isClosed());
+                                    
+                                    lockAcquired = true;
 
-								if (kms.getKurentoClient().isClosed()) {
-									log.info(
-											"Timer of KMS with uri {} and KurentoClient [{}] has been closed. Cancelling Timer",
-											kms.getUri(), kms.getKurentoClient().toString());
-									timer.cancel();
-									return;
-								}
+                                    if (kms.isKurentoClientConnected()) {
+                                        // reconnected listener already executed
+                                        log.info(
+                                                "Timer of KMS with uri {} and KurentoClient [{}] cancelled (reconnected event received during interval wait)",
+                                                kms.getUri(), kms.getKurentoClient().toString());
+                                        timer.cancel();
+                                        timer.purge();
+                                        return;
+                                    }
 
-								kms.getKurentoClient().getServerManager().getInfo();
-								log.info("According to Timer KMS with uri {} and KurentoClient [{}] is now reconnected",
-										kms.getUri(), kms.getKurentoClient().toString());
-								timer.cancel();
-								kms.setKurentoClientConnected(true);
-								kms.setTimeOfKurentoClientConnection(System.currentTimeMillis());
-								// Here we cannot differentiate between new or old KMS process
-								final long timeOfKurentoDisconnection = kms.getTimeOfKurentoClientDisconnection();
-								kms.getKurentoSessions().forEach(kSession -> {
-									kSession.restartStatusInKurento(timeOfKurentoDisconnection);
-								});
-								kms.setTimeOfKurentoClientDisconnection(0);
-							}
-						} catch (Exception e) {
-							log.error(
-									"According to Timer KMS with uri {} and KurentoClient [{}] is not reconnected yet. Exception {}",
-									kms.getUri(), kms.getKurentoClient().toString(), e.getClass().getName());
-						} finally {
-							if (lockAcquired) {
-								kmsReconnectionLocks.get(kms.getId()).unlock();
-							}
-						}
-					}
-				}, DISCONNECTED_INTERVAL_SECONDS * 1000, DISCONNECTED_INTERVAL_SECONDS * 1000);
+                                    if (kms.getKurentoClient().isClosed()) {
+                                        log.info(
+                                                "Timer of KMS with uri {} and KurentoClient [{}] has been closed. Cancelling Timer",
+                                                kms.getUri(), kms.getKurentoClient().toString());
+                                        timer.cancel();
+                                        timer.purge();
+                                        return;
+                                    }
 
+                                    kms.getKurentoClient().getServerManager().getInfo();
+                                    log.info("According to Timer KMS with uri {} and KurentoClient [{}] is now reconnected",
+                                            kms.getUri(), kms.getKurentoClient().toString());
+                                    timer.cancel();
+                                    timer.purge();
+                                    kms.setKurentoClientConnected(true);
+                                    kms.setTimeOfKurentoClientConnection(System.currentTimeMillis());
+                                    // Here we cannot differentiate between new or old KMS process
+                                    final long timeOfKurentoDisconnection = kms.getTimeOfKurentoClientDisconnection();
+                                    kms.getKurentoSessions().forEach(kSession -> {
+                                        kSession.restartStatusInKurento(timeOfKurentoDisconnection);
+                                    });
+                                    kms.setTimeOfKurentoClientDisconnection(0);
+                                }
+                            } catch (Exception e) {
+                                log.error(
+                                        "According to Timer KMS with uri {} and KurentoClient [{}] is not reconnected yet. Exception {}",
+                                        kms.getUri(), kms.getKurentoClient().toString(), e.getClass().getName());
+                            } finally {
+                                if (lockAcquired) {
+                                    kmsReconnectionLocks.get(kms.getId()).unlock();
+                                }
+                            }
+                        }
+                    }, DISCONNECTED_INTERVAL_SECONDS * 1000, DISCONNECTED_INTERVAL_SECONDS * 1000);
+                //}
+                /* else{
+                    kms.getKurentoClient().getServerManager().getInfo();
+                    log.info("KMS MANAGER DISCONNECTED ELSE with uri {} and KurentoClient [{}] is now reconnected",
+                            kms.getUri(), kms.getKurentoClient().toString());
+                            
+                    kms.setKurentoClientConnected(true);
+                    kms.setTimeOfKurentoClientConnection(System.currentTimeMillis());
+                    // Here we cannot differentiate between new or old KMS process
+                    final long timeOfKurentoDisconnection = kms.getTimeOfKurentoClientDisconnection();
+                    kms.getKurentoSessions().forEach(kSession -> {
+                        kSession.restartStatusInKurento(timeOfKurentoDisconnection);
+                    });
+                    kms.setTimeOfKurentoClientDisconnection(0);
+                } */
 			}
 
 			@Override
@@ -298,6 +321,7 @@ public abstract class KmsManager {
 				log.info("KMS MANAGER CONNECTION FAILED");
 				log.info("KMS ID {}", kmsId);
 				log.info("KMS uri {}", kms.getUri());
+                log.info("KMS Is Kurento Client Connected {}", kms.isKurentoClientConnected());
 				log.info("KMS Kurento Client ==> {}", kms.getKurentoClient().toString());
 				log.info("KMS Kurento Client is closed ==> {}", kms.getKurentoClient().isClosed());
 				
@@ -313,6 +337,7 @@ public abstract class KmsManager {
 				log.info("KMS MANAGER CONNECTED");
 				log.info("KMS ID {}", kmsId);
 				log.info("KMS uri {}", kms.getUri());
+                log.info("KMS Is Kurento Client Connected {}", kms.isKurentoClientConnected());
 				log.info("KMS Kurento Client ==> {}", kms.getKurentoClient().toString());
 				log.info("KMS Kurento Client is closed ==> {}", kms.getKurentoClient().isClosed());
 				

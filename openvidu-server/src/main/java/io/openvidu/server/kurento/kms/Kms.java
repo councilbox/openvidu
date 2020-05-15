@@ -55,8 +55,8 @@ public class Kms {
 	private String id; // Dynamic ID
 	private String uri;
 	private String ip;
-	private KurentoClient client;
-	private LoadManager loadManager;
+	private volatile KurentoClient client;
+	private volatile LoadManager loadManager;
 
 	private AtomicBoolean isKurentoClientConnected = new AtomicBoolean(false);
 	private AtomicLong timeOfKurentoClientConnection = new AtomicLong(0);
@@ -97,11 +97,11 @@ public class Kms {
 		return ip;
 	}
 
-	public KurentoClient getKurentoClient() {
+	public synchronized KurentoClient getKurentoClient() {
 		return this.client;
 	}
 
-	public double getLoad() {
+	public synchronized double getLoad() {
 		return loadManager.calculateLoad(this);
 	}
 
@@ -109,27 +109,27 @@ public class Kms {
 		return true; // loadManager.allowMoreElements(this);
 	}
 
-	public boolean isKurentoClientConnected() {
+	public synchronized boolean isKurentoClientConnected() {
 		return this.isKurentoClientConnected.get();
 	}
 
-	public void setKurentoClientConnected(boolean isConnected) {
+	public synchronized void setKurentoClientConnected(boolean isConnected) {
 		this.isKurentoClientConnected.set(isConnected);
 	}
 
-	public long getTimeOfKurentoClientConnection() {
+	public synchronized long getTimeOfKurentoClientConnection() {
 		return this.timeOfKurentoClientConnection.get();
 	}
 
-	public void setTimeOfKurentoClientConnection(long time) {
+	public synchronized void setTimeOfKurentoClientConnection(long time) {
 		this.timeOfKurentoClientConnection.set(time);
 	}
 
-	public long getTimeOfKurentoClientDisconnection() {
+	public synchronized long getTimeOfKurentoClientDisconnection() {
 		return this.timeOfKurentoClientDisconnection.get();
 	}
 
-	public void setTimeOfKurentoClientDisconnection(long time) {
+	public synchronized void setTimeOfKurentoClientDisconnection(long time) {
 		this.timeOfKurentoClientDisconnection.set(time);
 	}
 

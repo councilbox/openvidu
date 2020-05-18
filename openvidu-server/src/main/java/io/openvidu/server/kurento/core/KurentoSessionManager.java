@@ -358,7 +358,7 @@ public class KurentoSessionManager extends SessionManager {
 	}
 
 	@Override
-	public void unpublishVideo(Participant participant, Participant moderator, Integer transactionId,
+	public synchronized void unpublishVideo(Participant participant, Participant moderator, Integer transactionId,
 			EndReason reason) {
 		try {
 			KurentoParticipant kParticipant = (KurentoParticipant) participant;
@@ -389,7 +389,7 @@ public class KurentoSessionManager extends SessionManager {
 	}
 
 	@Override
-	public void subscribe(Participant participant, String senderName, String sdpOffer, Integer transactionId) {
+	public synchronized void subscribe(Participant participant, String senderName, String sdpOffer, Integer transactionId) {
 		String sdpAnswer = null;
 		Session session = null;
 		try {
@@ -433,7 +433,7 @@ public class KurentoSessionManager extends SessionManager {
 	}
 
 	@Override
-	public void unsubscribe(Participant participant, String senderName, Integer transactionId) {
+	public synchronized void unsubscribe(Participant participant, String senderName, Integer transactionId) {
 		log.debug("Request [UNSUBSCRIBE] remoteParticipant={} ({})", senderName, participant.getParticipantPublicId());
 
 		KurentoParticipant kParticipant = (KurentoParticipant) participant;
@@ -455,7 +455,7 @@ public class KurentoSessionManager extends SessionManager {
 	}
 
 	@Override
-	public void streamPropertyChanged(Participant participant, Integer transactionId, String streamId, String property,
+	public synchronized void streamPropertyChanged(Participant participant, Integer transactionId, String streamId, String property,
 			JsonElement newValue, String reason) {
 		KurentoParticipant kParticipant = (KurentoParticipant) participant;
 		streamId = kParticipant.getPublisherStreamId();
@@ -490,7 +490,7 @@ public class KurentoSessionManager extends SessionManager {
 	}
 
 	@Override
-	public void onIceCandidate(Participant participant, String endpointName, String candidate, int sdpMLineIndex,
+	public synchronized void onIceCandidate(Participant participant, String endpointName, String candidate, int sdpMLineIndex,
 			String sdpMid, Integer transactionId) {
 		try {
 			KurentoParticipant kParticipant = (KurentoParticipant) participant;
@@ -511,7 +511,7 @@ public class KurentoSessionManager extends SessionManager {
 	 * 
 	 * @throws OpenViduException in case of error while creating the session
 	 */
-	public KurentoSession createSession(Session sessionNotActive, Kms kms) throws OpenViduException {
+	public synchronized KurentoSession createSession(Session sessionNotActive, Kms kms) throws OpenViduException {
 		KurentoSession session = (KurentoSession) sessions.get(sessionNotActive.getSessionId());
 		if (session != null) {
 			throw new OpenViduException(Code.ROOM_CANNOT_BE_CREATED_ERROR_CODE,
@@ -537,7 +537,7 @@ public class KurentoSessionManager extends SessionManager {
 	}
 
 	@Override
-	public boolean evictParticipant(Participant evictedParticipant, Participant moderator, Integer transactionId,
+	public synchronized boolean evictParticipant(Participant evictedParticipant, Participant moderator, Integer transactionId,
 			EndReason reason) throws OpenViduException {
 
 		boolean sessionClosedByLastParticipant = false;
@@ -563,7 +563,7 @@ public class KurentoSessionManager extends SessionManager {
 	}
 
 	@Override
-	public KurentoMediaOptions generateMediaOptions(Request<JsonObject> request) throws OpenViduException {
+	public synchronized KurentoMediaOptions generateMediaOptions(Request<JsonObject> request) throws OpenViduException {
 
 		String sdpOffer = RpcHandler.getStringParam(request, ProtocolElements.PUBLISHVIDEO_SDPOFFER_PARAM);
 		boolean hasAudio = RpcHandler.getBooleanParam(request, ProtocolElements.PUBLISHVIDEO_HASAUDIO_PARAM);
@@ -618,7 +618,7 @@ public class KurentoSessionManager extends SessionManager {
 	}
 
 	@Override
-	public boolean unpublishStream(Session session, String streamId, Participant moderator, Integer transactionId,
+	public synchronized boolean unpublishStream(Session session, String streamId, Participant moderator, Integer transactionId,
 			EndReason reason) {
 		String participantPrivateId = ((KurentoSession) session).getParticipantPrivateIdFromStreamId(streamId);
 		if (participantPrivateId != null) {
@@ -639,7 +639,7 @@ public class KurentoSessionManager extends SessionManager {
 	}
 
 	@Override
-	public void applyFilter(Session session, String streamId, String filterType, JsonObject filterOptions,
+	public synchronized void applyFilter(Session session, String streamId, String filterType, JsonObject filterOptions,
 			Participant moderator, Integer transactionId, String filterReason) {
 		String participantPrivateId = ((KurentoSession) session).getParticipantPrivateIdFromStreamId(streamId);
 		if (participantPrivateId != null) {
@@ -693,7 +693,7 @@ public class KurentoSessionManager extends SessionManager {
 	}
 
 	@Override
-	public void removeFilter(Session session, String streamId, Participant moderator, Integer transactionId,
+	public synchronized void removeFilter(Session session, String streamId, Participant moderator, Integer transactionId,
 			String filterReason) {
 		String participantPrivateId = ((KurentoSession) session).getParticipantPrivateIdFromStreamId(streamId);
 		if (participantPrivateId != null) {
@@ -737,7 +737,7 @@ public class KurentoSessionManager extends SessionManager {
 	}
 
 	@Override
-	public void execFilterMethod(Session session, String streamId, String filterMethod, JsonObject filterParams,
+	public synchronized void execFilterMethod(Session session, String streamId, String filterMethod, JsonObject filterParams,
 			Participant moderator, Integer transactionId, String filterReason) {
 		String participantPrivateId = ((KurentoSession) session).getParticipantPrivateIdFromStreamId(streamId);
 		if (participantPrivateId != null) {
@@ -778,7 +778,7 @@ public class KurentoSessionManager extends SessionManager {
 	}
 
 	@Override
-	public void addFilterEventListener(Session session, Participant userSubscribing, String streamId, String eventType)
+	public synchronized void addFilterEventListener(Session session, Participant userSubscribing, String streamId, String eventType)
 			throws OpenViduException {
 		String publisherPrivateId = ((KurentoSession) session).getParticipantPrivateIdFromStreamId(streamId);
 		if (publisherPrivateId != null) {
@@ -822,7 +822,7 @@ public class KurentoSessionManager extends SessionManager {
 	}
 
 	@Override
-	public void removeFilterEventListener(Session session, Participant subscriber, String streamId, String eventType)
+	public synchronized void removeFilterEventListener(Session session, Participant subscriber, String streamId, String eventType)
 			throws OpenViduException {
 		String participantPrivateId = ((KurentoSession) session).getParticipantPrivateIdFromStreamId(streamId);
 		if (participantPrivateId != null) {
@@ -866,7 +866,7 @@ public class KurentoSessionManager extends SessionManager {
 	}
 
 	@Override
-	public Participant publishIpcam(Session session, MediaOptions mediaOptions, String serverMetadata)
+	public synchronized Participant publishIpcam(Session session, MediaOptions mediaOptions, String serverMetadata)
 			throws Exception {
 		final String sessionId = session.getSessionId();
 		final KurentoMediaOptions kMediaOptions = (KurentoMediaOptions) mediaOptions;
@@ -932,7 +932,7 @@ public class KurentoSessionManager extends SessionManager {
 	}
 
 	@Override
-	public void reconnectStream(Participant participant, String streamId, String sdpOffer, Integer transactionId) {
+	public synchronized void reconnectStream(Participant participant, String streamId, String sdpOffer, Integer transactionId) {
 		KurentoParticipant kParticipant = (KurentoParticipant) participant;
 		KurentoSession kSession = kParticipant.getSession();
 
@@ -983,12 +983,12 @@ public class KurentoSessionManager extends SessionManager {
 	}
 
 	@Override
-	public String getParticipantPrivateIdFromStreamId(String sessionId, String streamId) {
+	public synchronized String getParticipantPrivateIdFromStreamId(String sessionId, String streamId) {
 		Session session = this.getSession(sessionId);
 		return ((KurentoSession) session).getParticipantPrivateIdFromStreamId(streamId);
 	}
 
-	private void applyFilterInPublisher(KurentoParticipant kParticipant, KurentoFilter filter)
+	private synchronized void applyFilterInPublisher(KurentoParticipant kParticipant, KurentoFilter filter)
 			throws OpenViduException {
 		GenericMediaElement.Builder builder = new GenericMediaElement.Builder(kParticipant.getPipeline(),
 				filter.getType());
@@ -1000,13 +1000,13 @@ public class KurentoSessionManager extends SessionManager {
 		kParticipant.getPublisher().getMediaOptions().setFilter(filter);
 	}
 
-	private void removeFilterInPublisher(KurentoParticipant kParticipant) {
+	private synchronized void removeFilterInPublisher(KurentoParticipant kParticipant) {
 		kParticipant.getPublisher().cleanAllFilterListeners();
 		kParticipant.getPublisher().revert(kParticipant.getPublisher().getFilter());
 		kParticipant.getPublisher().getMediaOptions().setFilter(null);
 	}
 
-	private KurentoFilter execFilterMethodInPublisher(KurentoParticipant kParticipant, String method,
+	private synchronized KurentoFilter execFilterMethodInPublisher(KurentoParticipant kParticipant, String method,
 			JsonObject params) {
 		kParticipant.getPublisher().execMethod(method, params);
 		KurentoFilter filter = kParticipant.getPublisher().getMediaOptions().getFilter();
@@ -1015,7 +1015,7 @@ public class KurentoSessionManager extends SessionManager {
 		return updatedFilter;
 	}
 
-	private void addFilterEventListenerInPublisher(KurentoParticipant kParticipant, String eventType)
+	private synchronized void addFilterEventListenerInPublisher(KurentoParticipant kParticipant, String eventType)
 			throws OpenViduException {
 		PublisherEndpoint pub = kParticipant.getPublisher();
 		if (!pub.isListenerAddedToFilterEvent(eventType)) {
@@ -1039,7 +1039,7 @@ public class KurentoSessionManager extends SessionManager {
 		}
 	}
 
-	private void removeFilterEventListenerInPublisher(KurentoParticipant kParticipant, String eventType) {
+	private synchronized void removeFilterEventListenerInPublisher(KurentoParticipant kParticipant, String eventType) {
 		PublisherEndpoint pub = kParticipant.getPublisher();
 		if (pub.isListenerAddedToFilterEvent(eventType)) {
 			GenericMediaElement filter = kParticipant.getPublisher().getFilter();

@@ -137,11 +137,11 @@ public class Kms {
 		return this.kurentoSessions.values();
 	}
 
-	public void addKurentoSession(KurentoSession session) {
+	public synchronized void addKurentoSession(KurentoSession session) {
 		this.kurentoSessions.put(session.getSessionId(), session);
 	}
 
-	public void removeKurentoSession(String sessionId) {
+	public synchronized void removeKurentoSession(String sessionId) {
 		this.kurentoSessions.remove(sessionId);
 	}
 

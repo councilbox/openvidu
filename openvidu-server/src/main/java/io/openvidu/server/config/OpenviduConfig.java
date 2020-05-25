@@ -569,9 +569,9 @@ public class OpenviduConfig {
 		if (domain != null && !domain.isEmpty()) {
 			this.domainOrPublicIp = domain;
 			this.openviduPublicUrl = "https://" + domain;
-			if (this.httpsPort != null && this.httpsPort != 443) {
-				this.openviduPublicUrl += (":" + this.httpsPort);
-			}
+			// if (this.httpsPort != null && this.httpsPort != 443) {
+			// 	this.openviduPublicUrl += (":" + this.httpsPort);
+			// }
 			calculatePublicUrl();
 		} else {
 			addError(property, "Cannot be empty");

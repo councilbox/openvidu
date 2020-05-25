@@ -49,6 +49,7 @@ public abstract class KmsManager {
 	protected static final Logger log = LoggerFactory.getLogger(KmsManager.class);
 
 	public static final Lock selectAndRemoveKmsLock = new ReentrantLock(true);
+	public static final int MAX_SECONDS_LOCK_WAIT = 15;
 
 	private Map<String, Lock> kmsReconnectionLocks = new ConcurrentHashMap<>();
 
@@ -207,7 +208,7 @@ public abstract class KmsManager {
 				kms.setTimeOfKurentoClientDisconnection(System.currentTimeMillis());
 
 				if (kms.getKurentoClient().isClosed()) {
-					log.info("Kurento Client \"disconnected\" event for KMS {} [{}]. Closed explicitely", kms.getUri(),
+					log.info("Kurento Client \"disconnected\" event for KMS {} [{}]. Closed explicitly", kms.getUri(),
 							kms.getKurentoClient().toString());
 					return;
 				} else {

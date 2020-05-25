@@ -17,6 +17,9 @@
 
 package io.openvidu.server.kurento.endpoint;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
@@ -42,6 +45,7 @@ import org.kurento.client.internal.server.KurentoServerException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonNull;
@@ -89,7 +93,8 @@ public abstract class MediaEndpoint {
 	private MediaPipeline pipeline = null;
 	private ListenerSubscription endpointSubscription = null;
 
-	private final List<IceCandidate> receivedCandidateList = new LinkedList<IceCandidate>();
+	private final List<IceCandidate> receivedCandidateList = Collections.synchronizedList(new ArrayList<>());
+	private final List<IceCandidate> gatheredCandidateList = Collections.synchronizedList(new ArrayList<>());
 	private LinkedList<IceCandidate> candidates = new LinkedList<IceCandidate>();
 
 	public String selectedLocalIceCandidate;
@@ -529,8 +534,10 @@ public abstract class MediaEndpoint {
 			throw new OpenViduException(Code.MEDIA_WEBRTC_ENDPOINT_ERROR_CODE,
 					"Can't register event listener for null WebRtcEndpoint (ep: " + endpointName + ")");
 		}
-		webEndpoint.addOnIceCandidateListener(event -> {
-			owner.sendIceCandidate(senderPublicId, endpointName, event.getCandidate());
+		webEndpoint.addIceCandidateFoundListener(event -> {
+			final IceCandidate candidate = event.getCandidate();
+			gatheredCandidateList.add(candidate);
+			owner.sendIceCandidate(senderPublicId, endpointName, candidate);
 		});
 	}
 
@@ -597,9 +604,27 @@ public abstract class MediaEndpoint {
 						this.streamId, e.getMessage());
 				json.add("remoteSdp", JsonNull.INSTANCE);
 			}
-			json.addProperty("localSdp", ((SdpEndpoint) this.getEndpoint()).getLocalSessionDescriptor());
+			try {
+				json.addProperty("localSdp", ((SdpEndpoint) this.getEndpoint()).getLocalSessionDescriptor());
+			} catch (KurentoServerException e) {
+				log.error("Error retrieving local SDP for endpoint {} of stream {}: {}", this.endpointName,
+						this.streamId, e.getMessage());
+				json.add("localSdp", JsonNull.INSTANCE);
+			}
 		}
-		json.add("receivedCandidates", new GsonBuilder().create().toJsonTree(this.receivedCandidateList));
+		Gson gson = new GsonBuilder().create();
+		JsonArray receivedCandidates = new JsonArray();
+		Iterator<IceCandidate> it1 = this.receivedCandidateList.iterator();
+		while (it1 != null && it1.hasNext()) {
+			receivedCandidates.add(gson.toJsonTree(it1.next()));
+		}
+		json.add("receivedCandidates", receivedCandidates);
+		JsonArray gatheredCandidates = new JsonArray();
+		Iterator<IceCandidate> it2 = this.gatheredCandidateList.iterator();
+		while (it2 != null && it2.hasNext()) {
+			gatheredCandidates.add(gson.toJsonTree(it2.next()));
+		}
+		json.add("gatheredCandidates", gatheredCandidates);
 		json.addProperty("localCandidate", this.selectedLocalIceCandidate);
 		json.addProperty("remoteCandidate", this.selectedRemoteIceCandidate);
 
